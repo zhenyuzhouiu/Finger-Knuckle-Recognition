@@ -1,15 +1,14 @@
 import torch
-from torch.autograd import Function
-from torch.autograd import Variable
 from torch.autograd.gradcheck import gradcheck
 import torch.nn.functional as F
 import math
 
 
-def generate_theta(i_radian, i_tx, i_ty, i_batch_size, i_h, i_w):
+
+def generate_theta(i_radian, i_tx, i_ty, i_batch_size, i_h, i_w, i_dtype):
     theta = torch.tensor([[math.cos(i_radian), math.sin(-i_radian) * i_h / i_w, i_tx],
                           [math.sin(i_radian) * i_w / i_h, math.cos(i_radian), i_ty]],
-                         dtype=torch.double).unsqueeze(0).repeat(i_batch_size, 1, 1)
+                         dtype=i_dtype).unsqueeze(0).repeat(i_batch_size, 1, 1)
     return theta
 
 
@@ -29,19 +28,19 @@ class WholeImageRotationAndTranslation(torch.nn.Module):
 
     def forward(self, i_fm1, i_fm2):
         b, c, h, w = i_fm1.shape
-        mask = torch.ones_like(i_fm2, dtype=torch.double, device=i_fm1.device)
+        mask = torch.ones_like(i_fm2, device=i_fm1.device)
         n_affine = 0
         if self.training:
-            min_dist = torch.zeros([b, ], dtype=torch.double, requires_grad=True, device=i_fm1.device)
+            min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=True, device=i_fm1.device)
         else:
-            min_dist = torch.zeros([b, ], dtype=torch.double, requires_grad=False, device=i_fm1.device)
+            min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=False, device=i_fm1.device)
         for tx in range(-self.h_shift, self.h_shift + 1):
             for ty in range(-self.v_shift, self.v_shift + 1):
                 for a in range(-self.angle, self.angle + 1):
                     radian_a = a * math.pi / 180.
                     ratio_tx = 2 * tx / w
                     ratio_ty = 2 * ty / h
-                    theta = generate_theta(radian_a, ratio_tx, ratio_ty, b, h, w)
+                    theta = generate_theta(radian_a, ratio_tx, ratio_ty, b, h, w, i_fm1.dtype)
                     grid = F.affine_grid(theta, i_fm2.size(), align_corners=True).to(i_fm1.device)
                     r_fm2 = F.grid_sample(i_fm2, grid, align_corners=True)
                     r_mask = F.grid_sample(mask, grid, align_corners=True)
@@ -68,9 +67,9 @@ class ImageBlockRotationAndTranslation(torch.nn.Module):
     def forward(self, i_fm1, i_fm2):
         b, c, h, w = i_fm1.shape
         if self.training:
-            min_dist = torch.zeros([b, ], dtype=torch.double, requires_grad=True, device=i_fm1.device)
+            min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=True, device=i_fm1.device)
         else:
-            min_dist = torch.zeros([b, ], dtype=torch.double, requires_grad=False, device=i_fm1.device)
+            min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=False, device=i_fm1.device)
 
         n_affine = 0
         for sub_x in range(0, w, self.block_size):
@@ -79,9 +78,9 @@ class ImageBlockRotationAndTranslation(torch.nn.Module):
 
                 sub_affine = 0
                 if self.training:
-                    sub_min_dist = torch.zeros([b, ], dtype=torch.double, requires_grad=True, device=i_fm1.device)
+                    sub_min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=True, device=i_fm1.device)
                 else:
-                    sub_min_dist = torch.zeros([b, ], dtype=torch.double, requires_grad=False, device=i_fm1.device)
+                    sub_min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=False, device=i_fm1.device)
 
                 for dx in range(-self.h_shift, self.h_shift + 1):
                     for dy in range(-self.v_shift, self.v_shift + 1):
@@ -113,9 +112,9 @@ class ImageBlockRotationAndTranslation(torch.nn.Module):
 
                         for a in range(-self.angle, self.angle + 1):
                             sub_fm2_b, sub_fm2_c, sub_fm2_h, sub_fm2_w = sub_fm2.shape
-                            mask = torch.ones_like(sub_fm2, dtype=torch.double, device=i_fm1.device)
+                            mask = torch.ones_like(sub_fm2, dtype=i_fm1.dtype, device=i_fm1.device)
                             radian_a = a * math.pi / 180.
-                            theta = generate_theta(radian_a, 0, 0, sub_fm2_b, sub_fm2_h, sub_fm2_w)
+                            theta = generate_theta(radian_a, 0, 0, sub_fm2_b, sub_fm2_h, sub_fm2_w, i_fm1.dtype)
                             grid = F.affine_grid(theta, sub_fm2.size(), align_corners=True).to(i_fm1.device)
                             r_sub_fm2 = F.grid_sample(sub_fm2, grid, align_corners=True)
                             r_mask = F.grid_sample(mask, grid, align_corners=True)
@@ -126,20 +125,21 @@ class ImageBlockRotationAndTranslation(torch.nn.Module):
                                 sub_min_dist = torch.vstack([sub_min_dist, sub_mean_se])
                             sub_affine += 1
 
-                sub_min_dist, _ = torch.min(min_dist, dim=0)
+                sub_min_dist, _ = torch.min(sub_min_dist, dim=0)
                 if n_affine == 0:
                     min_dist = sub_min_dist
                 else:
                     min_dist = torch.vstack([min_dist, sub_min_dist])
+                n_affine += 1
 
-        min_dist = torch.sum(min_dist, dim=0)
+        min_dist, _ = torch.sum(min_dist, dim=0)
 
         return min_dist
 
 
 if __name__ == "__main__":
 
-    mode = "train"
+    mode = "eval"
     loss_type = ""
     if loss_type == "WholeImageRotationAndTranslation":
         if mode == "eval":
@@ -150,12 +150,12 @@ if __name__ == "__main__":
             print(min_dist)
         else:
             loss = WholeImageRotationAndTranslation(i_v_shift=3, i_h_shift=3, i_angle=3).train().cuda()
-            input1 = torch.randn([5, 5], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
-            input2 = torch.randn([5, 5], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
+            input1 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
+            input2 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
             min_dist = loss(input1, input2)
             print(min_dist)
 
-            test = gradcheck(loss, [input1, input2]).cuda()
+            test = gradcheck(loss, [input1, input2])
             print("Are the gradients of whole image rotation and translation correct: ", test)
     else:
         if mode == "eval":
@@ -171,5 +171,5 @@ if __name__ == "__main__":
             min_dist = loss(input1, input2).cuda()
             print(min_dist)
 
-            test = gradcheck(loss, [input1, input2]).cuda()
+            test = gradcheck(loss, [input1, input2])
             print("Are the gradients of whole image rotation and translation correct: ", test)
