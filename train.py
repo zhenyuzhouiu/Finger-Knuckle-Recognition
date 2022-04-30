@@ -24,12 +24,11 @@ def build_parser():
     parser.add_argument('--checkpoint_dir', type=str,
                         dest='checkpoint_dir', default='./checkpoint/')
     parser.add_argument('--db_prefix', dest='db_prefix', default='fkv1')
-    parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval',
-                        default=20)
+    parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval', default=20)
 
     # Dataset Options
     parser.add_argument('--train_path', type=str, dest='train_path',
-                        default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV1/Segmented/GUI_Seg/major/dataset/train_set/')
+                        default='./dataset/PolyUKnuckleV1/test_set/')
 
     # Training Strategy
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
@@ -40,14 +39,11 @@ def build_parser():
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
     # Pre-defined Options
     parser.add_argument('--shifttype', type=str, dest='shifttype', default='imageblockrotationandtranslation')
-    parser.add_argument('--losstype', type=str, dest='losstype', default='triplet')
     parser.add_argument('--alpha', type=float, dest='alpha', default=10)
-    parser.add_argument('--nnalpha', type=float, dest='nnalpha', default=40)
     parser.add_argument('--model', type=str, dest='model', default="RFN-128")
-    parser.add_argument('--shifted_size', type=int, dest='shifted_size', default=3)
-    parser.add_argument('--dilation_size', type=int, dest="dilation", default=3)
-    parser.add_argument('--subpatch_size', type=int, dest="subsize", default=8)
-    parser.add_argument('--rotate_angle', type=int, dest="angle", default=5)
+    parser.add_argument('--shifted_size', type=int, dest='shift_size', default=3)
+    parser.add_argument('--block_size', type=int, dest="block_size", default=8)
+    parser.add_argument('--rotate_angle', type=int, dest="rotate_angle", default=5)
 
     # fine-tuning
     parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="")
@@ -61,39 +57,32 @@ def main():
     this_datetime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
     args.checkpoint_dir = os.path.join(
         args.checkpoint_dir,
-        "{}_m{}-st{}-loss{}-lr{}-subd{}-subs{}-angle{}-a{}-nna{}-s{}_{}".format(
+        "{}_{}-{}-lr{}-subs{}-angle{}-a{}-s{}_{}".format(
             args.db_prefix,
             args.model,
             args.shifttype,
-            args.losstype,
             float(args.learning_rate),
-            int(args.dilation),
-            int(args.subsize),
-            int(args.angle),
+            int(args.block_size),
+            int(args.rotate_angle),
             int(args.alpha),
-            int(args.nnalpha),
-            int(args.shifted_size),
+            int(args.shift_size),
             this_datetime
         )
     )
 
     args.logdir = os.path.join(
         args.logdir,
-        "{}_m{}-st{}-loss{}-lr{}-subd{}-subs{}-angle{}-a{}-nna{}-s{}_{}".format(
+        "{}_{}-{}-lr{}-subs{}-angle{}-a{}-s{}_{}".format(
             args.db_prefix,
             args.model,
             args.shifttype,
-            args.losstype,
             float(args.learning_rate),
-            int(args.dilation),
-            int(args.subsize),
-            int(args.angle),
+            int(args.block_size),
+            int(args.rotate_angle),
             int(args.alpha),
-            int(args.nnalpha),
-            int(args.shifted_size),
+            int(args.shift_size),
             this_datetime
         )
-
     )
 
     print("[*] Target Checkpoint Path: {}".format(args.checkpoint_dir))
@@ -106,10 +95,8 @@ def main():
 
     writer = SummaryWriter(log_dir=args.logdir)
     model_ = Model(args, writer=writer)
-    if args.losstype == "triplet":
-        model_.triplet_train(args)
-    else:
-        model_.quadruplet_train(args)
+    model_.triplet_train(args)
+
 
 
 if __name__ == "__main__":

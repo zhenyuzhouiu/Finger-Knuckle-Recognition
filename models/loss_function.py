@@ -57,12 +57,13 @@ class WholeImageRotationAndTranslation(torch.nn.Module):
 
 
 class ImageBlockRotationAndTranslation(torch.nn.Module):
-    def __init__(self, i_block_size, i_v_shift, i_h_shift, i_angle):
+    def __init__(self, i_block_size, i_v_shift, i_h_shift, i_angle, i_topk=16):
         super(ImageBlockRotationAndTranslation, self).__init__()
         self.block_size = i_block_size
         self.v_shift = i_v_shift
         self.h_shift = i_h_shift
         self.angle = i_angle
+        self.topk = i_topk
 
     def forward(self, i_fm1, i_fm2):
         b, c, h, w = i_fm1.shape
@@ -132,7 +133,11 @@ class ImageBlockRotationAndTranslation(torch.nn.Module):
                     min_dist = torch.vstack([min_dist, sub_min_dist])
                 n_affine += 1
 
-        min_dist, _ = torch.sum(min_dist, dim=0)
+        if self.training:
+            min_dist = torch.sum(min_dist, dim=0)
+        else:
+            min_dist, _ = torch.topk(min_dist, self.topk, dim=0, largest=False)
+            min_dist = torch.sum(min_dist, dim=0)
 
         return min_dist
 

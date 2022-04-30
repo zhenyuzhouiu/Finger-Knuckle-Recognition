@@ -37,13 +37,12 @@ def randpick_list(src, list_except=None):
 
 
 class Factory(Dataset):
-    def __init__(self, data_path, transform=None, valid_ext=['.jpg', '.bmp', '.png'], train=True, losstype="triplet"):
+    def __init__(self, data_path, transform=None, valid_ext=['.jpg', '.bmp', '.png'], train=True):
         self.ext = valid_ext
         self.transform = transform
         self._has_ext = lambda f: True if [e for e in self.ext if e in f] else False
         self.folder = data_path
         self.train = train
-        self.losstype = losstype
 
         if not exists(self.folder):
             raise RuntimeError('Dataset not found: {}'.format(self.folder))
@@ -56,10 +55,7 @@ class Factory(Dataset):
 
     def __getitem__(self, index):
         if self.train:
-            if self.losstype == "triplet":
-                return self._triplet_trainitems(index)
-            else:
-                return self._quadruplet_trainitems(index)
+            return self._triplet_trainitems(index)
         else:
             return self._get_testitems(index)
 

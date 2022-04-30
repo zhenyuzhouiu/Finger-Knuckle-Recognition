@@ -1,6 +1,7 @@
 import os
 import time
 import torch
+from tqdm import tqdm
 import torchvision.utils
 from torch.autograd import Variable
 from models.net_model import ResidualFeatureNet, DeConvRFNet
@@ -8,7 +9,7 @@ from data.data_factory import Factory
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from models.efficientnet import EfficientNet
-from loss.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation
+from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation
 
 
 def logging(msg, suc=True):
@@ -37,8 +38,7 @@ class Model(object):
         transform = transforms.Compose([
             transforms.ToTensor()
         ])
-        train_dataset = Factory(args.train_path, transform=transform, valid_ext=['.bmp', '.jpg', '.JPG'], train=True,
-                                losstype=args.losstype)
+        train_dataset = Factory(args.train_path, transform=transform, valid_ext=['.bmp', '.jpg', '.JPG'], train=True)
         logging("Successfully Load {} as training dataset...".format(args.train_path))
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
@@ -56,7 +56,7 @@ class Model(object):
 
         return train_loader, len(train_dataset)
 
-    def exp_lr_scheduler(self, epoch, lr_decay=0.5, lr_decay_epoch=100):
+    def exp_lr_scheduler(self, epoch, lr_decay=0.1, lr_decay_epoch=100):
         if epoch % lr_decay_epoch == 0:
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] *= lr_decay
@@ -73,11 +73,12 @@ class Model(object):
         self.writer.add_graph(inference, data[0, :, :, :].unsqueeze(0))
 
         if args.shifttype == "wholeimagerotationandtranslation":
-            loss = WholeImageRotationAndTranslation(args.shifted_size, args.shifted_size, args.angle).cuda()
+            loss = WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle).cuda()
             logging("Successfully building whole image rotation and translation triplet loss")
             inference.cuda()
         elif args.shifttype == "imageblockrotationandtranslation":
-            loss = ImageBlockRotationAndTranslation(args.subsize, args.dilation, args.dilation, args.angle).cuda()
+            loss = ImageBlockRotationAndTranslation(args.block_size, args.shift_size, args.shift_size,
+                                                    args.rotate_angle).cuda()
             logging("Successfully building image block rotation and translation triplet loss")
             inference.cuda
         else:
@@ -100,15 +101,14 @@ class Model(object):
             self.inference.train()
             agg_loss = 0.
             count = 0
-            for batch_id, (x, _) in enumerate(self.train_loader):
+            # for batch_id, (x, _) in enumerate(self.train_loader):
+            # for batch_id, (x, _) in tqdm(enumerate(self.train_loader), total=len(self.train_loader)):
+            loop = tqdm(enumerate(self.train_loader), total=len(self.train_loader))
+            for batch_id, (x, _) in loop:
                 count += len(x)
-                self.optimizer.zero_grad()
                 x = x.cuda()
-
                 x = Variable(x, requires_grad=False)
-
                 fms = self.inference(x.view(-1, 3, x.size(2), x.size(3)))
-
                 # (batch_size, 12, 32, 32)
                 fms = fms.view(x.size(0), -1, fms.size(2), fms.size(3))
 
@@ -132,22 +132,20 @@ class Model(object):
 
                 loss.backward()
                 self.optimizer.step()
-
-                # agg_loss += loss.data[0]
-                agg_loss += loss.data
+                self.optimizer.zero_grad()
+                agg_loss += loss.item()
                 train_loss += loss.item()
 
-                if e % args.log_interval == 0:
-                    mesg = "{}\tEpoch {}:\t[{}/{}]\t {:.6f}".format(
-                        time.ctime(), e, count, self.dataset_size, agg_loss / (batch_id + 1)
-                    )
-                    print(mesg)
+                # if e % args.log_interval == 0:
+                #     message = "{}\tEpoch {}:\t[{}/{}]\t {:.6f}".\
+                #         format(time.ctime(), e, count, self.dataset_size, agg_loss/(batch_id+1))
+                # print(message)
+                loop.set_description(f'Epoch [{e}/{args.epochs}]')
+                loop.set_postfix(cumloss="{:.6f}".format(agg_loss))
 
-                if batch_id % 5 == 0:
-                    self.writer.add_scalar("loss",
-                                           scalar_value=train_loss,
-                                           global_step=(e * epoch_steps + batch_id))
-                    train_loss = 0
+            self.writer.add_scalar("loss", scalar_value=train_loss,
+                                   global_step=((e + 1) * epoch_steps))
+            train_loss = 0
 
             if args.checkpoint_dir is not None and e % args.checkpoint_interval == 0:
                 self.save(args.checkpoint_dir, e)
