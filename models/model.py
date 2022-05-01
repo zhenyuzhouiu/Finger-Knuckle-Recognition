@@ -21,7 +21,7 @@ def logging(msg, suc=True):
 
 model_dict = {
     "RFN-128": ResidualFeatureNet(),
-    "ImageBlock2RFNet": ImageBlocksRFNet(),
+    "ImageBlocksRFNet": ImageBlocksRFNet(),
     "DeConvRFNet": DeConvRFNet(),
     "EfficientNet": EfficientNet(width_coefficient=1.0, depth_coefficient=1.0, dropout_rate=0.2)
 }
@@ -63,7 +63,7 @@ class Model(object):
                 param_group['lr'] *= lr_decay
 
     def _build_model(self, args):
-        if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet"]:
+        if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet", "ImageBlocksRFNet"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda()
@@ -98,7 +98,7 @@ class Model(object):
             start_epoch = 1
 
         for e in range(start_epoch, args.epochs + start_epoch):
-            self.exp_lr_scheduler(e, lr_decay_epoch=300)
+            self.exp_lr_scheduler(e, lr_decay_epoch=100)
             self.inference.train()
             agg_loss = 0.
             count = 0

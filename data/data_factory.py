@@ -22,7 +22,7 @@ def load_image(path, options='RGB', size=128):
     assert (options in ["RGB", "L"])
     # the torch.ToTensor will scaling the [0, 255] to [0.0, 1.0]
     # if the numpy.ndarray has dtype = np.uint8
-    image = np.array(Image.open(path).convert(options).resize(int(size), int(size)), dtype=np.uint8)
+    image = np.array(Image.open(path).convert(options).resize((int(size), int(size))), dtype=np.uint8)
     return image
 
 

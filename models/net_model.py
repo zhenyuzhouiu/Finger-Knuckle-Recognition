@@ -5,6 +5,7 @@
 # =========================================================
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from functools import partial
 from models.net_common import ConvLayer, ResidualBlock, \
@@ -67,8 +68,20 @@ class ImageBlocksRFNet(torch.nn.Module):
         self.resid2 = ResidualBlock(2048)
         self.resid3 = ResidualBlock(2048)
         self.resid4 = ResidualBlock(2048)
-        self.conv4 = ConvLayer(2048, 64, kernel_size=3, stride=1)
+        self.conv4 = ConvLayer(2048, 1024, kernel_size=3, stride=1)
         self.conv5 = ConvLayer(1024, 16, kernel_size=1, stride=1)
+
+        for m in self.modules():
+            if isinstance(m, torch.nn.Conv2d):
+                torch.nn.init.kaiming_normal_(m.weight, mode="fan_out")
+                if m.bias is not None:
+                    torch.nn.init.zeros_(m.bias)
+            elif isinstance(m, torch.nn.BatchNorm2d):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.zeros_(m.bias)
 
     def forward(self, x):
         # x.shape:-> [bs,3,128,128]
@@ -88,15 +101,23 @@ class ImageBlocksRFNet(torch.nn.Module):
         conv4 = F.relu(self.conv4(resid4))
         # conv5.shape:-> [bs, 16, 8, 8]
         conv5 = F.relu(self.conv5(conv4))
-        out = torch.randn([bs, 1, 32, 32])
-        out[:, :, :8, :8] = conv5[:, 1, :, :], out[:, :, 8:16, :8] = conv5[:, 2, :, :]
-        out[:, :, 16:24, :8] = conv5[:, 3, :, :], out[:, :, 24:, :8] = conv5[:, 4, :, :]
-        out[:, :, :8, 8:16] = conv5[:, 5, :, :], out[:, :, 8:16, 8:16] = conv5[:, 6, :, :]
-        out[:, :, 16:24, 8:16] = conv5[:, 7, :, :], out[:, :, 24:, 8:16] = conv5[:, 8, :, :]
-        out[:, :, :8, 16:24] = conv5[:, 9, :, :], out[:, :, 8:16, 16:24] = conv5[:, 10, :, :]
-        out[:, :, 16:24, 16:24] = conv5[:, 11, :, :], out[:, :, 24:, 16:24] = conv5[:, 12, :, :]
-        out[:, :, :8, 24:] = conv5[:, 13, :, :], out[:, :, 8:16, 24:] = conv5[:, 14, :, :]
-        out[:, :, 16:24, 24:] = conv5[:, 15, :, :], out[:, :, 24:, 24:] = conv5[:, 16, :, :]
+        out = torch.zeros([bs, 1, 32, 32], device=x.device)
+        out[:, :, :8, :8] = conv5[:, 0, :, :].unsqueeze(1)
+        out[:, :, 8:16, :8] = conv5[:, 1, :, :].unsqueeze(1)
+        out[:, :, 16:24, :8] = conv5[:, 2, :, :].unsqueeze(1)
+        out[:, :, 24:, :8] = conv5[:, 3, :, :].unsqueeze(1)
+        out[:, :, :8, 8:16] = conv5[:, 4, :, :].unsqueeze(1)
+        out[:, :, 8:16, 8:16] = conv5[:, 5, :, :].unsqueeze(1)
+        out[:, :, 16:24, 8:16] = conv5[:, 6, :, :].unsqueeze(1)
+        out[:, :, 24:, 8:16] = conv5[:, 7, :, :].unsqueeze(1)
+        out[:, :, :8, 16:24] = conv5[:, 8, :, :].unsqueeze(1)
+        out[:, :, 8:16, 16:24] = conv5[:, 9, :, :].unsqueeze(1)
+        out[:, :, 16:24, 16:24] = conv5[:, 10, :, :].unsqueeze(1)
+        out[:, :, 24:, 16:24] = conv5[:, 11, :, :].unsqueeze(1)
+        out[:, :, :8, 24:] = conv5[:, 12, :, :].unsqueeze(1)
+        out[:, :, 8:16, 24:] = conv5[:, 13, :, :].unsqueeze(1)
+        out[:, :, 16:24, 24:] = conv5[:, 14, :, :].unsqueeze(1)
+        out[:, :, 24:, 24:] = conv5[:, 15, :, :].unsqueeze(1)
         return out
 
 
