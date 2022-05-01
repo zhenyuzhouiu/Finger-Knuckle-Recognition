@@ -4,7 +4,7 @@ import torch
 from tqdm import tqdm
 import torchvision.utils
 from torch.autograd import Variable
-from models.net_model import ResidualFeatureNet, DeConvRFNet
+from models.net_model import ResidualFeatureNet, DeConvRFNet, ImageBlocksRFNet
 from data.data_factory import Factory
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -21,6 +21,7 @@ def logging(msg, suc=True):
 
 model_dict = {
     "RFN-128": ResidualFeatureNet(),
+    "ImageBlock2RFNet": ImageBlocksRFNet(),
     "DeConvRFNet": DeConvRFNet(),
     "EfficientNet": EfficientNet(width_coefficient=1.0, depth_coefficient=1.0, dropout_rate=0.2)
 }

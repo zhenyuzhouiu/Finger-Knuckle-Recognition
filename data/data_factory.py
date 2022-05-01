@@ -15,14 +15,14 @@ from os.path import join, exists
 
 from PIL import Image
 import numpy as np
-from torch.utils.data import Dataset
+import torch
 
 
-def load_image(path, options='RGB'):
+def load_image(path, options='RGB', size=128):
     assert (options in ["RGB", "L"])
     # the torch.ToTensor will scaling the [0, 255] to [0.0, 1.0]
     # if the numpy.ndarray has dtype = np.uint8
-    image = np.array(Image.open(path).convert(options).resize((128, 128)), dtype=np.uint8)
+    image = np.array(Image.open(path).convert(options).resize(int(size), int(size)), dtype=np.uint8)
     return image
 
 
@@ -36,12 +36,13 @@ def randpick_list(src, list_except=None):
         return src_cp[np.random.randint(len(src_cp))]
 
 
-class Factory(Dataset):
-    def __init__(self, data_path, transform=None, valid_ext=['.jpg', '.bmp', '.png'], train=True):
+class Factory(torch.utils.data.Dataset):
+    def __init__(self, data_path, input_size=128, transform=None, valid_ext=['.jpg', '.bmp', '.png'], train=True):
         self.ext = valid_ext
         self.transform = transform
         self._has_ext = lambda f: True if [e for e in self.ext if e in f] else False
         self.folder = data_path
+        self.input_size = input_size
         self.train = train
 
         if not exists(self.folder):
@@ -92,14 +93,14 @@ class Factory(Dataset):
         # options = 'L' just convert image to gray image
         # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, positive), options='RGB'), -1))
         # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, anchor), options='RGB'), -1))
-        img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB'))
-        img.append(load_image(join(self.folder, selected_folder, positive), options='RGB'))
+        img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB', size=self.input_size))
+        img.append(load_image(join(self.folder, selected_folder, positive), options='RGB', size=self.input_size))
 
         for i in range(10):
             negative_folder = randpick_list(self.subfolder_names, [selected_folder])
             negative = randpick_list(self.fdict[negative_folder])
             # img.append(np.expand_dims(load_image(join(self.folder, negative_folder, negative), options='RGB'), -1))
-            img.append(load_image(join(self.folder, negative_folder, negative), options='RGB'))
+            img.append(load_image(join(self.folder, negative_folder, negative), options='RGB', size=self.input_size))
 
         img = np.concatenate(img, axis=-1)
         junk = np.array([0])

@@ -7,7 +7,7 @@
 import torch
 import torch.nn.functional as F
 from functools import partial
-from models.net_common import ConvLayer, ResidualBlock,\
+from models.net_common import ConvLayer, ResidualBlock, \
     DeformableConv2d2v, LKA, DeConvResBlock, PatchEmbed, Block
 
 
@@ -55,6 +55,49 @@ class ResidualFeatureNet(torch.nn.Module):
         conv5 = F.relu(self.conv5(conv4))
 
         return conv5
+
+
+class ImageBlocksRFNet(torch.nn.Module):
+    def __init__(self):
+        super(ImageBlocksRFNet, self).__init__()
+        self.conv1 = ConvLayer(48, 512, kernel_size=5, stride=2)
+        self.conv2 = ConvLayer(512, 1024, kernel_size=3, stride=2)
+        self.conv3 = ConvLayer(1024, 2048, kernel_size=3, stride=1)
+        self.resid1 = ResidualBlock(2048)
+        self.resid2 = ResidualBlock(2048)
+        self.resid3 = ResidualBlock(2048)
+        self.resid4 = ResidualBlock(2048)
+        self.conv4 = ConvLayer(2048, 64, kernel_size=3, stride=1)
+        self.conv5 = ConvLayer(1024, 16, kernel_size=1, stride=1)
+
+    def forward(self, x):
+        # x.shape:-> [bs,3,128,128]
+        bs, c, h, w = x.shape
+        x = torch.cat((x[:, :, :32, :32], x[:, :, 32:64, :32], x[:, :, 64:96, :32], x[:, :, 96:128, :32],
+                       x[:, :, :32, 32:64], x[:, :, 32:64, 32:64], x[:, :, 64:96, 32:64], x[:, :, 96:128, 32:64],
+                       x[:, :, :32, 64:96], x[:, :, 32:64, 64:96], x[:, :, 64:96, 64:96], x[:, :, 96:128, 64:96],
+                       x[:, :, :32, 96:], x[:, :, 32:64, 96:], x[:, :, 64:96, 96:], x[:, :, 96:128, 96:]),
+                      dim=1)
+        conv1 = F.relu(self.conv1(x))
+        conv2 = F.relu(self.conv2(conv1))
+        conv3 = F.relu(self.conv3(conv2))
+        resid1 = self.resid1(conv3)
+        resid2 = self.resid1(resid1)
+        resid3 = self.resid1(resid2)
+        resid4 = self.resid1(resid3)
+        conv4 = F.relu(self.conv4(resid4))
+        # conv5.shape:-> [bs, 16, 8, 8]
+        conv5 = F.relu(self.conv5(conv4))
+        out = torch.randn([bs, 1, 32, 32])
+        out[:, :, :8, :8] = conv5[:, 1, :, :], out[:, :, 8:16, :8] = conv5[:, 2, :, :]
+        out[:, :, 16:24, :8] = conv5[:, 3, :, :], out[:, :, 24:, :8] = conv5[:, 4, :, :]
+        out[:, :, :8, 8:16] = conv5[:, 5, :, :], out[:, :, 8:16, 8:16] = conv5[:, 6, :, :]
+        out[:, :, 16:24, 8:16] = conv5[:, 7, :, :], out[:, :, 24:, 8:16] = conv5[:, 8, :, :]
+        out[:, :, :8, 16:24] = conv5[:, 9, :, :], out[:, :, 8:16, 16:24] = conv5[:, 10, :, :]
+        out[:, :, 16:24, 16:24] = conv5[:, 11, :, :], out[:, :, 24:, 16:24] = conv5[:, 12, :, :]
+        out[:, :, :8, 24:] = conv5[:, 13, :, :], out[:, :, 8:16, 24:] = conv5[:, 14, :, :]
+        out[:, :, 16:24, 24:] = conv5[:, 15, :, :], out[:, :, 24:, 24:] = conv5[:, 16, :, :]
+        return out
 
 
 class DeConvRFNet(torch.nn.Module):

@@ -40,7 +40,8 @@ def build_parser():
     # Pre-defined Options
     parser.add_argument('--shifttype', type=str, dest='shifttype', default='imageblockrotationandtranslation')
     parser.add_argument('--alpha', type=float, dest='alpha', default=10)
-    parser.add_argument('--model', type=str, dest='model', default="RFN-128")
+    parser.add_argument('--model', type=str, dest='model', default="ImageBlocksRFNet")
+    parser.add_argument('--input_size', type=int, dest='input_size', default=128)
     parser.add_argument('--shifted_size', type=int, dest='shift_size', default=3)
     parser.add_argument('--block_size', type=int, dest="block_size", default=8)
     parser.add_argument('--rotate_angle', type=int, dest="rotate_angle", default=5)
