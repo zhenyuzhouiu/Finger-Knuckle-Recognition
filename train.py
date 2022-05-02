@@ -23,17 +23,17 @@ def build_parser():
 
     parser.add_argument('--checkpoint_dir', type=str,
                         dest='checkpoint_dir', default='./checkpoint/')
-    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv1')
+    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv3(session2)')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval', default=20)
 
     # Dataset Options
     parser.add_argument('--train_path', type=str, dest='train_path',
-                        default='./dataset/PolyUKnuckleV1/test_set/')
+                        default='./dataset/PolyUKnuckleV3/Session_2_128/')
 
     # Training Strategy
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
-    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-2)
+    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-3)
 
     # Training Logging Interval
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)

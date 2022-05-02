@@ -54,7 +54,7 @@ class DeConvResBlock(torch.nn.Module):
 
 
 class ConvLayer(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, bias=True):
         super(ConvLayer, self).__init__()
         if isinstance(kernel_size, int):
             reflection_padding = kernel_size // 2
@@ -63,7 +63,7 @@ class ConvLayer(torch.nn.Module):
             # (paddingLeft, paddingRight, paddingTop, paddingBottom)
             reflection_padding = (kernel_size[1], kernel_size[1], kernel_size[0], kernel_size[0])
         self.reflection_pad = torch.nn.ReflectionPad2d(reflection_padding)
-        self.conv2d = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride)
+        self.conv2d = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride, bias=bias)
 
     def forward(self, x):
         out = self.reflection_pad(x)
