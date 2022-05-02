@@ -33,7 +33,7 @@ def build_parser():
     # Training Strategy
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
-    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-3)
+    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-2)
 
     # Training Logging Interval
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
@@ -42,7 +42,7 @@ def build_parser():
     parser.add_argument('--alpha', type=float, dest='alpha', default=10)
     parser.add_argument('--model', type=str, dest='model', default="ImageBlocksRFNet")
     parser.add_argument('--input_size', type=int, dest='input_size', default=128)
-    parser.add_argument('--shifted_size', type=int, dest='shift_size', default=3)
+    parser.add_argument('--shifted_size', type=int, dest='shift_size', default=4)
     parser.add_argument('--block_size', type=int, dest="block_size", default=8)
     parser.add_argument('--rotate_angle', type=int, dest="rotate_angle", default=5)
 
@@ -94,10 +94,14 @@ def main():
     if not os.path.exists(args.logdir):
         os.makedirs(args.logdir)
 
+    hyper_parameter = os.path.join(args.checkpoint_dir, 'hyper_parameter.txt')
+    with open(hyper_parameter, 'w') as f:
+        for key, value in vars(args).items():
+            f.write('%s:%s\n' % (key, value))
+
     writer = SummaryWriter(log_dir=args.logdir)
     model_ = Model(args, writer=writer)
     model_.triplet_train(args)
-
 
 
 if __name__ == "__main__":

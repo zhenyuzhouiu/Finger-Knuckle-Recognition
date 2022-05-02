@@ -1,5 +1,5 @@
 import os
-import time
+from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 import torch
 from tqdm import tqdm
 import torchvision.utils
@@ -97,8 +97,11 @@ class Model(object):
         else:
             start_epoch = 1
 
+        # 0-100: 0.01; 150-450: 0.001; 450-800:0.0001; 800-：0.00001
+        scheduler = MultiStepLR(self.optimizer, milestones=[100, 450, 800], gamma=0.1)
+
         for e in range(start_epoch, args.epochs + start_epoch):
-            self.exp_lr_scheduler(e, lr_decay_epoch=100)
+            # self.exp_lr_scheduler(e, lr_decay_epoch=100)
             self.inference.train()
             agg_loss = 0.
             count = 0
@@ -150,6 +153,8 @@ class Model(object):
 
             if args.checkpoint_dir is not None and e % args.checkpoint_interval == 0:
                 self.save(args.checkpoint_dir, e)
+
+            scheduler.step()
 
         self.writer.close()
 
