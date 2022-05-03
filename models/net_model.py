@@ -158,7 +158,7 @@ class RFNWithSTNet(torch.nn.Module):
             nn.ReLU(True),
             nn.Linear(32, 3 * 2)
         )
-        self.fc_loc[2].weights.data.zero_()
+        self.fc_loc[2].weight.data.zero_()
         self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
 
         for m in self.modules():
