@@ -147,6 +147,7 @@ class Model(object):
                 loop.set_description(f'Epoch [{e}/{args.epochs}]')
                 loop.set_postfix(cumloss="{:.6f}".format(agg_loss))
 
+            self.writer.add_scalar("lr", scalar_value=scheduler.get_last_lr(), global_step=(e+1))
             self.writer.add_scalar("loss", scalar_value=train_loss,
                                    global_step=((e + 1) * epoch_steps))
             train_loss = 0
