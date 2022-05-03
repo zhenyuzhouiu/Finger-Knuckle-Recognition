@@ -4,7 +4,7 @@ import torch
 from tqdm import tqdm
 import torchvision.utils
 from torch.autograd import Variable
-from models.net_model import ResidualFeatureNet, DeConvRFNet, ImageBlocksRFNet
+from models.net_model import ResidualFeatureNet, DeConvRFNet, ImageBlocksRFNet, RFNWithSTNet
 from data.data_factory import Factory
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -23,7 +23,8 @@ model_dict = {
     "RFN-128": ResidualFeatureNet(),
     "ImageBlocksRFNet": ImageBlocksRFNet(),
     "DeConvRFNet": DeConvRFNet(),
-    "EfficientNet": EfficientNet(width_coefficient=1.0, depth_coefficient=1.0, dropout_rate=0.2)
+    "EfficientNet": EfficientNet(width_coefficient=1.0, depth_coefficient=1.0, dropout_rate=0.2),
+    "RFNWithSTNet": RFNWithSTNet()
 }
 
 
@@ -43,17 +44,19 @@ class Model(object):
         logging("Successfully Load {} as training dataset...".format(args.train_path))
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-        examples = iter(train_loader)
-        example_data, example_target = examples.next()
-        example_anchor = example_data[:, 0:3, :, :]
-        example_positive = example_data[:, 3:6, :, :]
-        example_negative = example_data[:, 6:9, :, :]
-        anchor_grid = torchvision.utils.make_grid(example_anchor)
-        self.writer.add_image(tag="anchor", img_tensor=anchor_grid)
-        positive_grid = torchvision.utils.make_grid(example_positive)
-        self.writer.add_image(tag="positive", img_tensor=positive_grid)
-        negative_grid = torchvision.utils.make_grid(example_negative)
-        self.writer.add_image(tag="negative", img_tensor=negative_grid)
+        # for solving the examples.next problem on Windows system
+        for i in range(1):
+            examples = iter(train_loader)
+            example_data, example_target = examples.next()
+            example_anchor = example_data[:, 0:3, :, :]
+            example_positive = example_data[:, 3:6, :, :]
+            example_negative = example_data[:, 6:9, :, :]
+            anchor_grid = torchvision.utils.make_grid(example_anchor)
+            self.writer.add_image(tag="anchor", img_tensor=anchor_grid)
+            positive_grid = torchvision.utils.make_grid(example_positive)
+            self.writer.add_image(tag="positive", img_tensor=positive_grid)
+            negative_grid = torchvision.utils.make_grid(example_negative)
+            self.writer.add_image(tag="negative", img_tensor=negative_grid)
 
         return train_loader, len(train_dataset)
 
@@ -63,7 +66,7 @@ class Model(object):
                 param_group['lr'] *= lr_decay
 
     def _build_model(self, args):
-        if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet", "ImageBlocksRFNet"]:
+        if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet", "ImageBlocksRFNet", "RFNWithSTNet"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda()
