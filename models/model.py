@@ -44,19 +44,17 @@ class Model(object):
         logging("Successfully Load {} as training dataset...".format(args.train_path))
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-        # for solving the examples.next problem on Windows system
-        for i in range(1):
-            examples = iter(train_loader)
-            example_data, example_target = examples.next()
-            example_anchor = example_data[:, 0:3, :, :]
-            example_positive = example_data[:, 3:6, :, :]
-            example_negative = example_data[:, 6:9, :, :]
-            anchor_grid = torchvision.utils.make_grid(example_anchor)
-            self.writer.add_image(tag="anchor", img_tensor=anchor_grid)
-            positive_grid = torchvision.utils.make_grid(example_positive)
-            self.writer.add_image(tag="positive", img_tensor=positive_grid)
-            negative_grid = torchvision.utils.make_grid(example_negative)
-            self.writer.add_image(tag="negative", img_tensor=negative_grid)
+        examples = iter(train_loader)
+        example_data, example_target = examples.next()
+        example_anchor = example_data[:, 0:3, :, :]
+        example_positive = example_data[:, 3:6, :, :]
+        example_negative = example_data[:, 6:9, :, :]
+        anchor_grid = torchvision.utils.make_grid(example_anchor)
+        self.writer.add_image(tag="anchor", img_tensor=anchor_grid)
+        positive_grid = torchvision.utils.make_grid(example_positive)
+        self.writer.add_image(tag="positive", img_tensor=positive_grid)
+        negative_grid = torchvision.utils.make_grid(example_negative)
+        self.writer.add_image(tag="negative", img_tensor=negative_grid)
 
         return train_loader, len(train_dataset)
 
@@ -101,7 +99,7 @@ class Model(object):
             start_epoch = 1
 
         # 0-100: 0.01; 150-450: 0.001; 450-800:0.0001; 800-：0.00001
-        scheduler = MultiStepLR(self.optimizer, milestones=[100, 450, 800], gamma=0.1)
+        scheduler = MultiStepLR(self.optimizer, milestones=[450, 800], gamma=0.1)
 
         for e in range(start_epoch, args.epochs + start_epoch):
             # self.exp_lr_scheduler(e, lr_decay_epoch=100)
@@ -150,7 +148,8 @@ class Model(object):
                 loop.set_description(f'Epoch [{e}/{args.epochs}]')
                 loop.set_postfix(cumloss="{:.6f}".format(agg_loss))
 
-            self.writer.add_scalar("lr", scalar_value=scheduler.get_last_lr(), global_step=(e+1))
+            self.writer.add_scalar("lr", scalar_value=self.optimizer.state_dict()['param_groups'][0]['lr'],
+                                   global_step=(e+1))
             self.writer.add_scalar("loss", scalar_value=train_loss,
                                    global_step=((e + 1) * epoch_steps))
             train_loss = 0
