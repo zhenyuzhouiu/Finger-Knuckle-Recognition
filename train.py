@@ -23,7 +23,7 @@ def build_parser():
 
     parser.add_argument('--checkpoint_dir', type=str,
                         dest='checkpoint_dir', default='./checkpoint/')
-    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv3(session2)')
+    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv3(session2)-improved')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval', default=20)
 
     # Dataset Options
@@ -38,16 +38,16 @@ def build_parser():
     # Training Logging Interval
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
     # Pre-defined Options
-    parser.add_argument('--shifttype', type=str, dest='shifttype', default='imageblockrotationandtranslation')
-    parser.add_argument('--alpha', type=float, dest='alpha', default=10)
-    parser.add_argument('--model', type=str, dest='model', default="ImageBlocksRFNet")
+    parser.add_argument('--shifttype', type=str, dest='shifttype', default='wholeimagerotationandtranslation')
+    parser.add_argument('--alpha', type=float, dest='alpha', default=30)
+    parser.add_argument('--model', type=str, dest='model', default="RFNWithSTNet")
     parser.add_argument('--input_size', type=int, dest='input_size', default=128)
     parser.add_argument('--shifted_size', type=int, dest='shift_size', default=4)
     parser.add_argument('--block_size', type=int, dest="block_size", default=8)
     parser.add_argument('--rotate_angle', type=int, dest="rotate_angle", default=5)
 
     # fine-tuning
-    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="")
+    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/fkv3(session2)-improved_RFNWithSTNet-wholeimagerotationandtranslation-lr0.01-subs8-angle5-a30-s4_2022-05-06-18-40/ckpt_epoch_1980.pth")
     return parser
 
 

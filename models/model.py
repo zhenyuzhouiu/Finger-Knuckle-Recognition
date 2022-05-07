@@ -99,7 +99,7 @@ class Model(object):
             start_epoch = 1
 
         # 0-100: 0.01; 150-450: 0.001; 450-800:0.0001; 800-：0.00001
-        scheduler = MultiStepLR(self.optimizer, milestones=[450, 800], gamma=0.1)
+        scheduler = MultiStepLR(self.optimizer, milestones=[100, 450, 800], gamma=0.1)
 
         for e in range(start_epoch, args.epochs + start_epoch):
             # self.exp_lr_scheduler(e, lr_decay_epoch=100)
@@ -133,6 +133,7 @@ class Model(object):
 
                 sstl = ap_loss - an_loss + args.alpha
                 sstl = torch.clamp(sstl, min=0)
+
                 loss = torch.sum(sstl) / args.batch_size
 
                 loss.backward()
@@ -149,13 +150,13 @@ class Model(object):
                 loop.set_postfix(cumloss="{:.6f}".format(agg_loss))
 
             self.writer.add_scalar("lr", scalar_value=self.optimizer.state_dict()['param_groups'][0]['lr'],
-                                   global_step=(e+1))
+                                   global_step=(e + 1))
             self.writer.add_scalar("loss", scalar_value=train_loss,
                                    global_step=((e + 1) * epoch_steps))
             train_loss = 0
 
             if args.checkpoint_dir is not None and e % args.checkpoint_interval == 0:
-                self.save(args.checkpoint_dir, e)
+                self.save(args.checkpoint_dir, 'last')
 
             scheduler.step()
 
