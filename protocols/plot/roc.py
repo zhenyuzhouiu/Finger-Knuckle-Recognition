@@ -12,10 +12,10 @@ import argparse
 from plotroc_basic import *
 
 
-src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fine-tuning/fkv3-efficientnet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fine-tuning/fkv3-deconvrfn/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fkv3-rfn/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeshifted/fkv3-rfn/protocol3.npy',
+src_npy = ['C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNet-3000-protocol.npy',
+           'C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNetWithoutRES-1-protocol.npy',
+           'C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNetWithoutRES-2-protocol.npy',
+           'C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\RFN-WS-protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/fkv3-rfn/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/fkv3-rfn/d3-a5-topk12-protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fkv3-efficientnet/protocol3.npy',
@@ -24,9 +24,9 @@ src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP16/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN/protocol3.npy']
 
-label = ['EfficientNet-WRS',
-         'DeConvRFN-WRS',
-         'RFN-WRS',
+label = ['ConvNet-WS',
+         'ConvNetWithoutRES-1',
+         'ConvNetWithoutRES-2',
          'RFN-WS',
          'RFN-IBRS',
          'RFN-128-WRS-1-105-0.01',
@@ -47,9 +47,9 @@ color = ['#000000',
          '#808000',
          '#ff00ff',
          '#ff0000']
-dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fkv3-ibrs-protocol3_roc.pdf'
+dst = 'C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNet-VS-protocol3_roc.pdf'
 
-for i in range(6):
+for i in range(4):
     data = np.load(src_npy[i], allow_pickle=True)[()]
     g_scores = np.array(data['g_scores'])
     i_scores = np.array(data['i_scores'])
@@ -61,10 +61,10 @@ for i in range(6):
     x, y = calc_coordinates(g_scores, i_scores)
     print ("[*] EER: {}".format(calc_eer(x, y)))
 
-    xmin, xmax = plt.xlim()
-    ymin, ymax = plt.ylim()
+    # xmin, xmax = plt.xlim()
+    # ymin, ymax = plt.ylim()
 
-    lines = plt.plot(x, y, label='')
+    lines = plt.plot(x, y, label='ROC')
     plt.setp(lines, 'color', color[i], 'linewidth', 1, 'label', label[i])
 
     matplotlib.rc('xtick', labelsize=10)

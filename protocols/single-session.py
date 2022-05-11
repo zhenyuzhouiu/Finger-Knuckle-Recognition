@@ -36,7 +36,7 @@ parent_dir = current_dir[:current_dir.rfind(os.path.sep)]
 sys.path.insert(0, parent_dir)
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 transform = transforms.Compose([transforms.ToTensor()])
 
@@ -156,13 +156,13 @@ def genuine_imposter(test_path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--test_path", type=str,
-                    default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV3/Segmented/Session_1_128/1-104/",
+                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\dataset\\PolyUKnuckleV3\\Session_1_128\\1-104\\",
                     dest="test_path")
 parser.add_argument("--out_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/fkv3-rfn/d3-a5-topk12-protocol3.npy",
+                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNetWithoutRES-2-protocol.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/fkv3(session_2_1_104)_mRFN-128-stimageblockwithgradient-losstriplet-lr0.001-subd3-subs8-angle5-a20-nna40-s3_2022-04-28-20-43/ckpt_epoch_1000.pth",
+                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\checkpoint\\fkv3(session2)_ConvNet-wholeimagerotationandtranslation-lr0.01-subs8-angle5-a20-s4_2022-05-09-17-26\\ckpt_epoch_1720.pth",
                     dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
@@ -179,14 +179,17 @@ else:
         inference = models.net_model.DeConvRFNet()
     elif "EfficientNet" in args.model_path:
         inference = models.efficientnet.EfficientNet(width_coefficient=1, depth_coefficient=1, dropout_rate=0.2)
+    else:
+        if "ConvNet" in args.model_path:
+            inference = models.net_model.ConvNet()
 
 inference.load_state_dict(torch.load(args.model_path))
 # inference = torch.jit.load("knuckle-script-polyu.pt")
 # Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
-# Loss = net_common.WholeRotationShiftedLoss(args.shift_size, args.shift_size, args.angle)
-Loss = models.loss_function.ImageBlockRotationAndTranslation(i_block_size=args.block_size, i_v_shift=args.shift_size,
-                                                             i_h_shift=args.shift_size, i_angle=args.rotate_angle,
-                                                             i_topk=args.top_k)
+Loss = models.loss_function.WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
+# Loss = models.loss_function.ImageBlockRotationAndTranslation(i_block_size=args.block_size, i_v_shift=args.shift_size,
+#                                                              i_h_shift=args.shift_size, i_angle=args.rotate_angle,
+#                                                              i_topk=args.top_k)
 Loss.cuda()
 Loss.eval()
 

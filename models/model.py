@@ -4,12 +4,14 @@ import torch
 from tqdm import tqdm
 import torchvision.utils
 from torch.autograd import Variable
-from models.net_model import ResidualFeatureNet, DeConvRFNet, ImageBlocksRFNet, RFNWithSTNet
-from data.data_factory import Factory
-from torchvision import transforms
-from torch.utils.data import DataLoader
+from models.net_model import ResidualFeatureNet, DeConvRFNet, ImageBlocksRFNet, RFNWithSTNet, ConvNet
 from models.efficientnet import EfficientNet
 from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation
+from torchvision import transforms
+import torchvision
+from torch.utils.data import DataLoader
+from data.data_factory import Factory
+import models
 
 
 def logging(msg, suc=True):
@@ -24,7 +26,9 @@ model_dict = {
     "ImageBlocksRFNet": ImageBlocksRFNet(),
     "DeConvRFNet": DeConvRFNet(),
     "EfficientNet": EfficientNet(width_coefficient=1.0, depth_coefficient=1.0, dropout_rate=0.2),
-    "RFNWithSTNet": RFNWithSTNet()
+    "RFNWithSTNet": RFNWithSTNet(),
+    "ConvNet": ConvNet(),
+    "STNetConvNet": models.net_model.STNetConvNet()
 }
 
 
@@ -64,7 +68,8 @@ class Model(object):
                 param_group['lr'] *= lr_decay
 
     def _build_model(self, args):
-        if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet", "ImageBlocksRFNet", "RFNWithSTNet"]:
+        if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet",
+                              "ImageBlocksRFNet", "RFNWithSTNet", "ConvNet", "STNetConvNet"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda()
@@ -99,7 +104,7 @@ class Model(object):
             start_epoch = 1
 
         # 0-100: 0.01; 150-450: 0.001; 450-800:0.0001; 800-：0.00001
-        scheduler = MultiStepLR(self.optimizer, milestones=[100, 450, 800], gamma=0.1)
+        scheduler = MultiStepLR(self.optimizer, milestones=[250, 600, 800], gamma=0.1)
 
         for e in range(start_epoch, args.epochs + start_epoch):
             # self.exp_lr_scheduler(e, lr_decay_epoch=100)
@@ -156,7 +161,7 @@ class Model(object):
             train_loss = 0
 
             if args.checkpoint_dir is not None and e % args.checkpoint_interval == 0:
-                self.save(args.checkpoint_dir, 'last')
+                self.save(args.checkpoint_dir, e)
 
             scheduler.step()
 
