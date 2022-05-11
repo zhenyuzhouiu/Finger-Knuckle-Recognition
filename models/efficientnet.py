@@ -339,6 +339,90 @@ class EfficientNet(nn.Module):
         return self._forward_impl(x)
 
 
+class EfficientVSResidual(nn.Module):
+    def __init__(self,
+                 width_coefficient: float,
+                 depth_coefficient: float,
+                 drop_connect_rate: float = 0.2,
+                 block: Optional[Callable[..., nn.Module]] = None,
+                 norm_layer: Optional[Callable[..., nn.Module]] = None
+                 ):
+        super(EfficientNet, self).__init__()
+
+        # kernel_size, in_channel, out_channel, exp_ratio, strides, use_SE, drop_connect_rate, repeats
+
+        default_cnf = [[3, 128, 128, 1, 1, True, drop_connect_rate, 1],
+                       [3, 128, 128, 1, 1, True, drop_connect_rate, 1],
+                       [3, 128, 128, 1, 1, True, drop_connect_rate, 1],
+                       [3, 128, 128, 1, 1, True, drop_connect_rate, 1]]
+
+        def round_repeats(repeats):
+            """Round number of repeats based on depth multiplier."""
+            return int(math.ceil(depth_coefficient * repeats))
+
+        if block is None:
+            block = InvertedResidual
+
+        if norm_layer is None:
+            norm_layer = partial(nn.BatchNorm2d, eps=1e-3, momentum=0.1)
+
+        adjust_channels = partial(InvertedResidualConfig.adjust_channels,
+                                  width_coefficient=width_coefficient)
+
+        # build inverted_residual_setting
+        # for exporting default value to InvertedResidualConfig
+        bneck_conf = partial(InvertedResidualConfig,
+                             width_coefficient=width_coefficient)
+
+        b = 0
+        num_blocks = float(sum(round_repeats(i[-1]) for i in default_cnf))
+        inverted_residual_setting = []
+        for stage, args in enumerate(default_cnf):
+            cnf = copy.copy(args)
+            # when use pop(), it will pop the element and delete from the list
+            for i in range(round_repeats(cnf.pop(-1))):
+                # only first block of MBlocks with stride 2 and change output channels
+                if i > 0:
+                    # strides equal 1 except first cnf
+                    cnf[-3] = 1  # strides
+                    cnf[1] = cnf[2]  # input_channel equal output_channel
+
+                # update dropout ratio, the drop connect rate will increase with depth increase
+                cnf[-1] = args[-2] * b / num_blocks
+                index = str(stage + 1) + chr(i + 97)  # 1a, 2a, 2b, ...
+                inverted_residual_setting.append(bneck_conf(*cnf, index))
+                b += 1
+
+        # create layers
+        layers = OrderedDict()
+
+        # building inverted residual blocks
+        for cnf in inverted_residual_setting:
+            layers.update({cnf.index: block(cnf, norm_layer)})
+
+        self.features = nn.Sequential(layers)
+
+        # initial weights
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out")
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.zeros_(m.bias)
+
+    def _forward_impl(self, x: Tensor) -> Tensor:
+        x = self.features(x)
+        return x
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self._forward_impl(x)
+
+
 def efficientnet_b0(num_classes=1000):
     # input image size 224x224
     return EfficientNet(width_coefficient=1.0,

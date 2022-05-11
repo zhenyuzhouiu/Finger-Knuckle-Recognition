@@ -28,7 +28,9 @@ model_dict = {
     "EfficientNet": EfficientNet(width_coefficient=1.0, depth_coefficient=1.0, dropout_rate=0.2),
     "RFNWithSTNet": RFNWithSTNet(),
     "ConvNet": ConvNet(),
-    "STNetConvNet": models.net_model.STNetConvNet()
+    "STNetConvNet": models.net_model.STNetConvNet(),
+    "ConvNetEfficientNet": models.net_model.ConvNetEfficientNet(),
+    "STNetConvNetEfficientNet": models.net_model.STNetConvNetEfficientNet()
 }
 
 
@@ -69,7 +71,8 @@ class Model(object):
 
     def _build_model(self, args):
         if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet",
-                              "ImageBlocksRFNet", "RFNWithSTNet", "ConvNet", "STNetConvNet"]:
+                              "ImageBlocksRFNet", "RFNWithSTNet", "ConvNet",
+                              "STNetConvNet", "STNetConvNetEfficientNet", "ConvNetEfficientNet"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda()
