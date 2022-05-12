@@ -12,6 +12,7 @@ from models.net_common import ConvLayer, ResidualBlock, \
     DeformableConv2d2v, LKA, DeConvResBlock, PatchEmbed, Block
 from models.efficientnet import EfficientVSResidual
 
+
 def _init_vit_weights(m):
     """
     ViT weight initialization
@@ -102,6 +103,7 @@ class STNetConvNet(torch.nn.Module):
             nn.ReLU(True),
             nn.Linear(32, 3 * 2)
         )
+        self.bn0 = torch.nn.BatchNorm2d(num_features=3)
         self.fc_loc[2].weight.data.zero_()
         self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
         # Initial convolution layers
@@ -144,7 +146,7 @@ class ConvNetEfficientNet(torch.nn.Module):
         self.conv1 = ConvLayer(3, 32, kernel_size=5, stride=2)
         self.conv2 = ConvLayer(32, 64, kernel_size=3, stride=2)
         self.conv3 = ConvLayer(64, 128, kernel_size=3, stride=1)
-        self.efficient = EfficientVSResidual(width_coefficient=1, depth_coefficient=1, dropout_rate=0.)
+        self.efficient = EfficientVSResidual(width_coefficient=1, depth_coefficient=1, drop_connect_rate=0.)
         self.conv4 = ConvLayer(128, 64, kernel_size=3, stride=1)
         self.conv5 = ConvLayer(64, 1, kernel_size=1, stride=1)
 
@@ -187,7 +189,7 @@ class STNetConvNetEfficientNet(torch.nn.Module):
         self.bn2 = torch.nn.BatchNorm2d(num_features=64)
         self.conv3 = ConvLayer(64, 128, kernel_size=3, stride=1)
         self.bn3 = torch.nn.BatchNorm2d(num_features=128)
-        self.efficient = EfficientVSResidual(width_coefficient=1, depth_coefficient=1, dropout_rate=0.)
+        self.efficient = EfficientVSResidual(width_coefficient=1, depth_coefficient=1, drop_connect_rate=0.)
         self.conv4 = ConvLayer(128, 64, kernel_size=1, stride=1)
         self.bn4 = torch.nn.BatchNorm2d(num_features=64)
         self.conv5 = ConvLayer(64, 1, kernel_size=1, stride=1)
@@ -232,7 +234,7 @@ class ImageBlocksRFNet(torch.nn.Module):
         self.bn4 = torch.nn.BatchNorm2d(num_features=1024)
         self.conv5 = ConvLayer(1024, 512, kernel_size=3, stride=1, bias=False)
         self.bn5 = torch.nn.BatchNorm2d(num_features=512)
-        self.conv6 = ConvLayer(512, 16, kernel_size=1, stride=1,bias=False)
+        self.conv6 = ConvLayer(512, 16, kernel_size=1, stride=1, bias=False)
         self.bn6 = torch.nn.BatchNorm2d(num_features=16)
 
         for m in self.modules():

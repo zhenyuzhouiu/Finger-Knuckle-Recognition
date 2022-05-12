@@ -347,7 +347,7 @@ class EfficientVSResidual(nn.Module):
                  block: Optional[Callable[..., nn.Module]] = None,
                  norm_layer: Optional[Callable[..., nn.Module]] = None
                  ):
-        super(EfficientNet, self).__init__()
+        super(EfficientVSResidual, self).__init__()
 
         # kernel_size, in_channel, out_channel, exp_ratio, strides, use_SE, drop_connect_rate, repeats
 

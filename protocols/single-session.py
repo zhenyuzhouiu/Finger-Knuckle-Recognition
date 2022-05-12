@@ -156,33 +156,36 @@ def genuine_imposter(test_path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--test_path", type=str,
-                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\dataset\\PolyUKnuckleV3\\Session_1_128\\1-104\\",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/Session_1_128/1-104/",
                     dest="test_path")
 parser.add_argument("--out_path", type=str,
-                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNetWithoutRES-2-protocol.npy",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/output/STNetConvNetEfficientNet-lr0.0001-WRS-protocol.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
-                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\checkpoint\\fkv3(session2)_ConvNet-wholeimagerotationandtranslation-lr0.01-subs8-angle5-a20-s4_2022-05-09-17-26\\ckpt_epoch_1720.pth",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/fkv3(session2)_STNetConvNetEfficientNet-wholeimagerotationandtranslation-lr0.0001-subs8-angle5-a20-s4_2022-05-12-00-59/ckpt_epoch_1260.pth",
                     dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
-parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
+parser.add_argument("--shift_size", type=int, dest="shift_size", default=4)
 parser.add_argument('--block_size', type=int, dest="block_size", default=8)
 parser.add_argument("--rotate_angle", type=int, dest="rotate_angle", default=5)
 parser.add_argument("--top_k", type=int, dest="top_k", default=16)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)
+parser.add_argument('--model', type=str, dest='model', default="STNetConvNetEfficientNet")
+
+model_dict = {
+    "RFN-128": models.net_model.ResidualFeatureNet(),
+    "ImageBlocksRFNet": models.net_model.ImageBlocksRFNet(),
+    "DeConvRFNet": models.net_model.DeConvRFNet(),
+    "EfficientNet": models.efficientnet.EfficientNet(width_coefficient=1.0, depth_coefficient=1.0, dropout_rate=0.2),
+    "RFNWithSTNet": models.net_model.RFNWithSTNet(),
+    "ConvNet": models.net_model.ConvNet(),
+    "STNetConvNet": models.net_model.STNetConvNet(),
+    "ConvNetEfficientNet": models.net_model.ConvNetEfficientNet(),
+    "STNetConvNetEfficientNet": models.net_model.STNetConvNetEfficientNet()
+}
 
 args = parser.parse_args()
-if "RFN-128" in args.model_path:
-    inference = models.net_model.ResidualFeatureNet()
-else:
-    if "DeConvRFNet" in args.model_path:
-        inference = models.net_model.DeConvRFNet()
-    elif "EfficientNet" in args.model_path:
-        inference = models.efficientnet.EfficientNet(width_coefficient=1, depth_coefficient=1, dropout_rate=0.2)
-    else:
-        if "ConvNet" in args.model_path:
-            inference = models.net_model.ConvNet()
-
+inference = model_dict[args.model].cuda()
 inference.load_state_dict(torch.load(args.model_path))
 # inference = torch.jit.load("knuckle-script-polyu.pt")
 # Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
