@@ -87,8 +87,10 @@ class ConvNet(torch.nn.Module):
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3,stride=2, padding=1)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1)
+        self.bn1 = nn.BatchNorm2d(num_features=32)
         self.conv2 = nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1)
+        self.bn2 = nn.BatchNorm2d(num_features=32)
         self.conv3 = nn.Conv2d(32, 1, kernel_size=3, stride=1, padding=1)
 
         # Spatial transformer localization-network
@@ -103,9 +105,9 @@ class Net(nn.Module):
 
         # Regressor for the 3 * 2 affine matrix
         self.fc_loc = nn.Sequential(
-            nn.Linear(5 * 28 * 28, 5*28),
+            nn.Linear(5 * 28 * 28, 5 * 28),
             nn.ReLU(True),
-            nn.Linear(5*28, 3 * 2)
+            nn.Linear(5 * 28, 3 * 2)
         )
 
         # Initialize the weights/bias with identity transformation
@@ -119,7 +121,7 @@ class Net(nn.Module):
         theta = self.fc_loc(xs)
         theta = theta.view(-1, 2, 3)
 
-        grid = F.affine_grid(theta, x.size())
+        grid = F.affine_grid(theta, x.size(), )
         x = F.grid_sample(x, grid)
 
         return x
@@ -129,8 +131,8 @@ class Net(nn.Module):
         x = self.stn(x)
 
         # Perform the usual forward pass
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.conv3(x))
         return x
 
@@ -216,38 +218,40 @@ class STNetConvNetEfficientNet(torch.nn.Module):
         super(STNetConvNetEfficientNet, self).__init__()
         # Spatial Transformer Network
         self.localization = nn.Sequential(
-            nn.Conv2d(3, 8, kernel_size=7, bias=False),
-            nn.BatchNorm2d(num_features=8),
+            nn.Conv2d(128, 64, kernel_size=7, bias=False),
+            nn.BatchNorm2d(num_features=64),
             nn.MaxPool2d(2, stride=2),
             nn.ReLU(True),
-            nn.Conv2d(8, 10, kernel_size=5, bias=False),
-            nn.BatchNorm2d(num_features=10),
+            nn.Conv2d(64, 32, kernel_size=5, bias=False),
+            nn.BatchNorm2d(num_features=32),
             nn.MaxPool2d(2, stride=2),
             nn.ReLU(True)
         )
         self.fc_loc = nn.Sequential(
-            nn.Linear(10 * 28 * 28, 32),
+            nn.Linear(32 * 4 * 4, 32),
             nn.ReLU(True),
             nn.Linear(32, 3 * 2)
         )
         self.fc_loc[2].weight.data.zero_()
         self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
         # Initial convolution layers
-        self.conv1 = ConvLayer(3, 32, kernel_size=5, stride=2)
+        # input shape:-> [bs, c, h ,w]:[bs, 3, 128, 128]
+        self.conv1 = ConvLayer(3, 32, kernel_size=5, stride=2, bias=False)
         self.bn1 = torch.nn.BatchNorm2d(num_features=32)
-        self.conv2 = ConvLayer(32, 64, kernel_size=3, stride=2)
+        self.conv2 = ConvLayer(32, 64, kernel_size=3, stride=2, bias=False)
         self.bn2 = torch.nn.BatchNorm2d(num_features=64)
-        self.conv3 = ConvLayer(64, 128, kernel_size=3, stride=1)
+        self.conv3 = ConvLayer(64, 128, kernel_size=3, stride=1, bias=False)
         self.bn3 = torch.nn.BatchNorm2d(num_features=128)
+        # output shape:-> [bs, 128, 32, 32]
         self.efficient = EfficientVSResidual(width_coefficient=1, depth_coefficient=1, drop_connect_rate=0.)
-        self.conv4 = ConvLayer(128, 64, kernel_size=1, stride=1)
+        self.conv4 = ConvLayer(128, 64, kernel_size=1, stride=1, bias=False)
         self.bn4 = torch.nn.BatchNorm2d(num_features=64)
         self.conv5 = ConvLayer(64, 1, kernel_size=1, stride=1)
-        self.bn5 = torch.nn.BatchNorm2d(num_features=1)
+        # self.bn5 = torch.nn.BatchNorm2d(num_features=1)
 
     def stn(self, x):
         xs = self.localization(x)
-        xs = xs.view(-1, 10 * 28 * 28)
+        xs = xs.view(-1, 32 * 4 * 4)
         theta = self.fc_loc(xs)
         theta = theta.view(-1, 2, 3)
         grid = F.affine_grid(theta, x.size(), align_corners=True)
@@ -256,13 +260,13 @@ class STNetConvNetEfficientNet(torch.nn.Module):
         return x
 
     def forward(self, x):
-        x = self.stn(x)
         conv1 = F.relu(self.bn1(self.conv1(x)))
         conv2 = F.relu(self.bn2(self.conv2(conv1)))
         conv3 = F.relu(self.bn3(self.conv3(conv2)))
-        efficient = self.efficient(conv3)
+        stn_conv3 = self.stn(conv3)
+        efficient = self.efficient(stn_conv3)
         conv4 = F.relu(self.bn4(self.conv4(efficient)))
-        conv5 = F.relu(self.bn5(self.conv5(conv4)))
+        conv5 = F.relu(self.conv5(conv4))
 
         return conv5
 
