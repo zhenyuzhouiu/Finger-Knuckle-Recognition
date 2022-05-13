@@ -12,7 +12,7 @@ from models.model import Model
 from torch.utils.tensorboard import SummaryWriter
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 
 def build_parser():
@@ -40,7 +40,7 @@ def build_parser():
     # Pre-defined Options
     parser.add_argument('--shifttype', type=str, dest='shifttype', default='shiftedloss')
     parser.add_argument('--alpha', type=float, dest='alpha', default=20)
-    parser.add_argument('--model', type=str, dest='model', default="STNetConvNetEfficientNet")
+    parser.add_argument('--model', type=str, dest='model', default="FirstSTNetThenConvNetMiddleEfficientNet")
     parser.add_argument('--input_size', type=int, dest='input_size', default=128)
     parser.add_argument('--shifted_size', type=int, dest='shift_size', default=4)
     parser.add_argument('--block_size', type=int, dest="block_size", default=8)

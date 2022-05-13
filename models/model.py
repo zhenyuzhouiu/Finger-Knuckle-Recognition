@@ -31,7 +31,8 @@ model_dict = {
     "STNetConvNet": models.net_model.STNetConvNet(),
     "ConvNetEfficientNet": models.net_model.ConvNetEfficientNet(),
     "STNetConvNetEfficientNet": models.net_model.STNetConvNetEfficientNet(),
-    "Net": models.net_model.Net()
+    "Net": models.net_model.Net(),
+    "FirstSTNetThenConvNetMiddleEfficientNet": models.net_model.FirstSTNetThenConvNetMiddleEfficientNet()
 }
 
 
@@ -73,7 +74,8 @@ class Model(object):
     def _build_model(self, args):
         if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet",
                               "ImageBlocksRFNet", "RFNWithSTNet", "ConvNet",
-                              "STNetConvNet", "STNetConvNetEfficientNet", "ConvNetEfficientNet", "Net"]:
+                              "STNetConvNet", "STNetConvNetEfficientNet",
+                              "ConvNetEfficientNet", "Net", "FirstSTNetThenConvNetMiddleEfficientNet"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda()
@@ -113,7 +115,7 @@ class Model(object):
             start_epoch = 1
 
         # 0-100: 0.01; 150-450: 0.001; 450-800:0.0001; 800-：0.00001
-        scheduler = MultiStepLR(self.optimizer, milestones=[3, 100, 400, 800], gamma=0.1)
+        scheduler = MultiStepLR(self.optimizer, milestones=[3, 30, 400, 800, 1500], gamma=0.1)
 
         for e in range(start_epoch, args.epochs + start_epoch):
             # self.exp_lr_scheduler(e, lr_decay_epoch=100)
