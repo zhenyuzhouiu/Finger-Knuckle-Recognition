@@ -6,7 +6,7 @@ import torchvision.utils
 from torch.autograd import Variable
 from models.net_model import ResidualFeatureNet, DeConvRFNet, ImageBlocksRFNet, RFNWithSTNet, ConvNet
 from models.efficientnet import EfficientNet
-from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation
+from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation, ShiftedLoss
 from torchvision import transforms
 import torchvision
 from torch.utils.data import DataLoader
@@ -30,7 +30,8 @@ model_dict = {
     "ConvNet": ConvNet(),
     "STNetConvNet": models.net_model.STNetConvNet(),
     "ConvNetEfficientNet": models.net_model.ConvNetEfficientNet(),
-    "STNetConvNetEfficientNet": models.net_model.STNetConvNetEfficientNet()
+    "STNetConvNetEfficientNet": models.net_model.STNetConvNetEfficientNet(),
+    "Net": models.net_model.Net()
 }
 
 
@@ -40,7 +41,7 @@ class Model(object):
         self.batch_size = args.batch_size
         self.train_loader, self.dataset_size = self._build_dataset_loader(args)
         self.inference, self.loss = self._build_model(args)
-        self.optimizer = torch.optim.Adam(self.inference.parameters(), args.learning_rate)
+        self.optimizer = torch.optim.Adagrad(self.inference.parameters(), args.learning_rate)
 
     def _build_dataset_loader(self, args):
         transform = transforms.Compose([
@@ -72,7 +73,7 @@ class Model(object):
     def _build_model(self, args):
         if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet",
                               "ImageBlocksRFNet", "RFNWithSTNet", "ConvNet",
-                              "STNetConvNet", "STNetConvNetEfficientNet", "ConvNetEfficientNet"]:
+                              "STNetConvNet", "STNetConvNetEfficientNet", "ConvNetEfficientNet", "Net"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda()
@@ -92,7 +93,12 @@ class Model(object):
             logging("Successfully building image block rotation and translation triplet loss")
             inference.cuda
         else:
-            raise RuntimeError('Model loss not found')
+            if args.shifttype == "shiftedloss":
+                loss = ShiftedLoss(hshift=args.shift_size, vshift=args.shift_size).cuda()
+                logging("Successfully building shifted triplet loss")
+                inference.cuda
+            else:
+                raise RuntimeError('Model loss not found')
 
         return inference, loss
 
@@ -107,7 +113,7 @@ class Model(object):
             start_epoch = 1
 
         # 0-100: 0.01; 150-450: 0.001; 450-800:0.0001; 800-：0.00001
-        scheduler = MultiStepLR(self.optimizer, milestones=[100, 400, 800], gamma=0.1)
+        scheduler = MultiStepLR(self.optimizer, milestones=[50, 400, 800], gamma=0.1)
 
         for e in range(start_epoch, args.epochs + start_epoch):
             # self.exp_lr_scheduler(e, lr_decay_epoch=100)

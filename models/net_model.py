@@ -84,6 +84,57 @@ class ConvNet(torch.nn.Module):
         return conv5
 
 
+class Net(nn.Module):
+    def __init__(self):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3,stride=2, padding=1)
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(32, 1, kernel_size=3, stride=1, padding=1)
+
+        # Spatial transformer localization-network
+        self.localization = nn.Sequential(
+            nn.Conv2d(3, 5, kernel_size=7),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(5, 5, kernel_size=5),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True)
+        )
+
+        # Regressor for the 3 * 2 affine matrix
+        self.fc_loc = nn.Sequential(
+            nn.Linear(5 * 28 * 28, 5*28),
+            nn.ReLU(True),
+            nn.Linear(5*28, 3 * 2)
+        )
+
+        # Initialize the weights/bias with identity transformation
+        self.fc_loc[2].weight.data.zero_()
+        self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
+
+    # Spatial transformer network forward function
+    def stn(self, x):
+        xs = self.localization(x)
+        xs = xs.view(-1, 5 * 28 * 28)
+        theta = self.fc_loc(xs)
+        theta = theta.view(-1, 2, 3)
+
+        grid = F.affine_grid(theta, x.size())
+        x = F.grid_sample(x, grid)
+
+        return x
+
+    def forward(self, x):
+        # transform the input
+        x = self.stn(x)
+
+        # Perform the usual forward pass
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        return x
+
+
 class STNetConvNet(torch.nn.Module):
     def __init__(self):
         super(STNetConvNet, self).__init__()
@@ -103,7 +154,6 @@ class STNetConvNet(torch.nn.Module):
             nn.ReLU(True),
             nn.Linear(32, 3 * 2)
         )
-        self.bn0 = torch.nn.BatchNorm2d(num_features=3)
         self.fc_loc[2].weight.data.zero_()
         self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
         # Initial convolution layers

@@ -12,24 +12,22 @@ import argparse
 from plotroc_basic import *
 
 
-src_npy = ['C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNet-3000-protocol.npy',
-           'C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNetWithoutRES-1-protocol.npy',
-           'C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNetWithoutRES-2-protocol.npy',
-           'C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\RFN-WS-protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/fkv3-rfn/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/fkv3-rfn/d3-a5-topk12-protocol3.npy',
+src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/output/ConvNetVSRFNet/ConvNet-3000-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/output/ConvNetVSRFNet/ConvNetEfficientNet-lr0.0001-WRS-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/output/ConvNetVSRFNet/ConvNetWithoutRES-1-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/output/ConvNetVSRFNet/RFN-WS-protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/output/ConvNetVSRFNet/STNetConvNetEfficientNet-lr0.0001-WRS-protocol.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fkv3-efficientnet/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeshifted/fkv3-rfn/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP14/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP16/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN/protocol3.npy']
 
-label = ['ConvNet-WS',
+label = ['ConvNet-3000',
+         'ConvNetEfficientNet-lr0.0001-WRS',
          'ConvNetWithoutRES-1',
-         'ConvNetWithoutRES-2',
          'RFN-WS',
-         'RFN-IBRS',
-         'RFN-128-WRS-1-105-0.01',
+         'STNetConvNetEfficientNet-lr0.0001-WRS',
          'EfficientNet-WRS',
          'RFN-WS',
          'RFN-128-14',
@@ -47,9 +45,9 @@ color = ['#000000',
          '#808000',
          '#ff00ff',
          '#ff0000']
-dst = 'C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\output\\ConvNetVSRFNet\\ConvNet-VS-protocol3_roc.pdf'
+dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/output/ConvNetVSRFNet/ConvNet-VS-protocol3_roc.pdf'
 
-for i in range(4):
+for i in range(5):
     data = np.load(src_npy[i], allow_pickle=True)[()]
     g_scores = np.array(data['g_scores'])
     i_scores = np.array(data['i_scores'])
@@ -73,7 +71,7 @@ for i in range(4):
     plt.grid(True)
     plt.xlabel(r'False Accept Rate', fontsize=18)
     plt.ylabel(r'Genuine Accept Rate', fontsize=18)
-    legend = plt.legend(loc='lower right', shadow=False, prop={'size': 16})
+    legend = plt.legend(loc='lower right', shadow=False, prop={'size': 5})
     plt.xlim(xmin=min(x))
     plt.xlim(xmax=0)
     plt.ylim(ymax=1)

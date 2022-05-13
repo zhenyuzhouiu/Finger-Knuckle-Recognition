@@ -2,7 +2,8 @@ import torch
 from torch.autograd.gradcheck import gradcheck
 import torch.nn.functional as F
 import math
-
+import sys
+from torch.autograd import Variable
 
 
 def generate_theta(i_radian, i_tx, i_ty, i_batch_size, i_h, i_w, i_dtype):
@@ -12,11 +13,18 @@ def generate_theta(i_radian, i_tx, i_ty, i_batch_size, i_h, i_w, i_dtype):
     return theta
 
 
-def mse_loss(i_fm1, i_fm2, i_mask):
+def rotate_mse_loss(i_fm1, i_fm2, i_mask):
     # the input feature map shape is (bs, 1, h, w)
     square_err = torch.mul(torch.pow((i_fm1 - i_fm2), 2), i_mask)
     mean_se = square_err.view(i_fm1.size(0), -1).sum(1) / i_mask.view(i_fm1.size(0), -1).sum(1)
     return mean_se
+
+
+def mse_loss(src, target):
+    if isinstance(src, torch.autograd.Variable):
+        return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
+    else:
+        return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
 
 
 class WholeImageRotationAndTranslation(torch.nn.Module):
@@ -34,6 +42,10 @@ class WholeImageRotationAndTranslation(torch.nn.Module):
             min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=True, device=i_fm1.device)
         else:
             min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=False, device=i_fm1.device)
+
+        if self.v_shift == self.h_shift == 0:
+            min_dist = mse_loss(i_fm1, i_fm2).cuda()
+            return min_dist
         for tx in range(-self.h_shift, self.h_shift + 1):
             for ty in range(-self.v_shift, self.v_shift + 1):
                 for a in range(-self.angle, self.angle + 1):
@@ -45,7 +57,7 @@ class WholeImageRotationAndTranslation(torch.nn.Module):
                     r_fm2 = F.grid_sample(i_fm2, grid, align_corners=True)
                     r_mask = F.grid_sample(mask, grid, align_corners=True)
                     # mean_se.shape: -> (bs, )
-                    mean_se = mse_loss(i_fm1, r_fm2, r_mask)
+                    mean_se = rotate_mse_loss(i_fm1, r_fm2, r_mask)
                     if n_affine == 0:
                         min_dist = mean_se
                     else:
@@ -71,6 +83,10 @@ class ImageBlockRotationAndTranslation(torch.nn.Module):
             min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=True, device=i_fm1.device)
         else:
             min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=False, device=i_fm1.device)
+
+        if self.v_shift == self.h_shift == self.angle == 0:
+            min_dist = mse_loss(i_fm1, i_fm2).cuda()
+            return min_dist
 
         n_affine = 0
         for sub_x in range(0, w, self.block_size):
@@ -119,7 +135,7 @@ class ImageBlockRotationAndTranslation(torch.nn.Module):
                             grid = F.affine_grid(theta, sub_fm2.size(), align_corners=True).to(i_fm1.device)
                             r_sub_fm2 = F.grid_sample(sub_fm2, grid, align_corners=True)
                             r_mask = F.grid_sample(mask, grid, align_corners=True)
-                            sub_mean_se = mse_loss(sub_fm1, r_sub_fm2, r_mask)
+                            sub_mean_se = rotate_mse_loss(sub_fm1, r_sub_fm2, r_mask)
                             if sub_affine == 0:
                                 sub_min_dist = sub_mean_se
                             else:
@@ -140,6 +156,48 @@ class ImageBlockRotationAndTranslation(torch.nn.Module):
             min_dist = torch.sum(min_dist, dim=0)
 
         return min_dist
+
+
+class ShiftedLoss(torch.nn.Module):
+    def __init__(self, hshift, vshift, topk=-1):
+        super(ShiftedLoss, self).__init__()
+        self.hshift = hshift
+        self.vshift = vshift
+        self.topk = topk
+
+    def forward(self, fm1, fm2):
+        # C * H * W
+        bs, _, h, w = fm1.size()
+        if w < self.hshift:
+            self.hshift = self.hshift % w
+        if h < self.vshift:
+            self.vshift = self.vshift % h
+
+        # min_dist shape (bs, )  & sys.float_info.max is to get the max float value
+        # min_dist save the maximal float value
+        min_dist = torch.ones(bs).cuda() * sys.float_info.max
+        if isinstance(fm1, torch.autograd.Variable):
+            min_dist = Variable(min_dist, requires_grad=False)
+
+        if self.hshift == 0 and self.vshift == 0:
+            dist = mse_loss(fm1, fm2).cuda()
+            min_dist, _ = torch.min(torch.stack([min_dist, dist]), 0)
+            return min_dist
+
+        for bh in range(-self.hshift, self.hshift + 1):
+            for bv in range(-self.vshift, self.vshift + 1):
+                if bh >= 0:
+                    ref1, ref2 = fm1[:, :, :, :w - bh], fm2[:, :, :, bh:]
+                else:
+                    ref1, ref2 = fm1[:, :, :, -bh:], fm2[:, :, :, :w + bh]
+
+                if bv >= 0:
+                    ref1, ref2 = ref1[:, :, :h - bv, :], ref2[:, :, bv:, :]
+                else:
+                    ref1, ref2 = ref1[:, :, -bv:, :], ref2[:, :, :h + bv, :]
+                dist = mse_loss(ref1, ref2).cuda()
+                min_dist, _ = torch.min(torch.stack([min_dist.squeeze(), dist.squeeze()]), 0)
+        return min_dist.squeeze()
 
 
 if __name__ == "__main__":
