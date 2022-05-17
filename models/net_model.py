@@ -59,6 +59,59 @@ class ResidualFeatureNet(torch.nn.Module):
         return conv5
 
 
+class RFNBinaryConvNet(torch.nn.Module):
+    def __init__(self):
+        super(RFNBinaryConvNet, self).__init__()
+        # Initial convolution layers
+        self.conv1 = ConvLayer(3, 32, kernel_size=5, stride=2, bias=False)
+        self.bn1 = nn.BatchNorm2d(num_features=32)
+        self.conv2 = ConvLayer(32, 64, kernel_size=3, stride=2, bias=False)
+        self.bn2 = nn.BatchNorm2d(num_features=64)
+        self.conv3 = ConvLayer(64, 128, kernel_size=3, stride=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(num_features=128)
+        self.resid1 = ResidualBlock(128)
+        self.resid2 = ResidualBlock(128)
+        self.resid3 = ResidualBlock(128)
+        self.resid4 = ResidualBlock(128)
+        self.conv4 = ConvLayer(128, 64, kernel_size=3, stride=1)
+        self.bn4 = nn.BatchNorm2d(num_features=64)
+        self.conv5 = ConvLayer(64, 1, kernel_size=1, stride=1)
+        self.bn5 = nn.BatchNorm2d(num_features=1)
+
+        self.threshold = nn.Sequential(
+            nn.Conv2d(128, 128, groups=128, kernel_size=7),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(128, 128, groups=128, kernel_size=5),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(128, 128, groups=128, kernel_size=4),
+            nn.Sigmoid()
+        )
+
+    def binary(self, x):
+        # x.shape:-> [bs, 128, 32, 32]
+        # xs.shape:-> [bs, 128, 1, 1]
+        xs = self.threshold(x)
+        xs = torch.sign(x - xs)
+        x = torch.relu(xs)
+        return x
+
+    def forward(self, x):
+        conv1 = F.relu(self.bn1(self.conv1(x)))
+        conv2 = F.relu(self.bn2(self.conv2(conv1)))
+        conv3 = F.relu(self.bn3(self.conv3(conv2)))
+        resid1 = self.resid1(conv3)
+        resid2 = self.resid1(resid1)
+        resid3 = self.resid1(resid2)
+        resid4 = self.resid1(resid3)
+        binary = self.binary(resid4)
+        conv4 = F.relu(torch.sign(self.conv4(binary)))
+        conv5 = F.relu(torch.sign(self.conv5(conv4)))
+
+        return conv5
+
+
 class ConvNet(torch.nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()

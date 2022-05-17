@@ -37,7 +37,8 @@ model_dict = {
     "ConvNetEfficientSTNetBinary": models.net_model.ConvNetEfficientSTNetBinary(),
     "ConvNetEfficientSTNet": models.net_model.ConvNetEfficientSTNet(),
     "ConvNetEfficientSTNetConvNet": models.net_model.ConvNetEfficientSTNetConvNet(),
-    "ConvNetEfficientSTNetBinaryConvNet": models.net_model.ConvNetEfficientSTNetBinaryConvNet()
+    "ConvNetEfficientSTNetBinaryConvNet": models.net_model.ConvNetEfficientSTNetBinaryConvNet(),
+    "RFNBinaryConvNet": models.net_model.RFNBinaryConvNet()
 }
 
 
@@ -82,7 +83,7 @@ class Model(object):
                               "STNetConvNet", "STNetConvNetEfficientNet",
                               "ConvNetEfficientNet", "Net", "FirstSTNetThenConvNetMiddleEfficientNet",
                               "ConvNetEfficientSTNetBinaryConvNet", "ConvNetEfficientSTNetConvNet",
-                              "ConvNetEfficientSTNet", "ConvNetEfficientSTNetBinary"]:
+                              "ConvNetEfficientSTNet", "ConvNetEfficientSTNetBinary", "RFNBinaryConvNet"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda().eval()
