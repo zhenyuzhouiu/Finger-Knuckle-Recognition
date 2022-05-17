@@ -6,7 +6,7 @@ import torchvision.utils
 from torch.autograd import Variable
 from models.net_model import ResidualFeatureNet, DeConvRFNet, ImageBlocksRFNet, RFNWithSTNet, ConvNet
 from models.efficientnet import EfficientNet
-from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation,\
+from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation, \
     ShiftedLoss, MSELoss, HammingDistance
 from torchvision import transforms
 import torchvision
@@ -85,36 +85,42 @@ class Model(object):
                               "ConvNetEfficientSTNet", "ConvNetEfficientSTNetBinary"]:
             raise RuntimeError('Model not found')
 
-        inference = model_dict[args.model].cuda()
+        inference = model_dict[args.model].cuda().eval()
 
         examples = iter(self.train_loader)
         example_data, example_target = examples.next()
         # This place will raise RuntimeWarning: Iterating over a tensor might cause the trace to be incorrect.
         data = example_data.view(-1, 3, example_data.size(2), example_data.size(3)).cuda()
+        data = Variable(data, requires_grad=False)
         self.writer.add_graph(inference, data)
 
         if args.shifttype == "wholeimagerotationandtranslation":
             loss = WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle).cuda()
             logging("Successfully building whole image rotation and translation triplet loss")
+            inference.train()
             inference.cuda()
         elif args.shifttype == "imageblockrotationandtranslation":
             loss = ImageBlockRotationAndTranslation(args.block_size, args.shift_size, args.shift_size,
                                                     args.rotate_angle).cuda()
             logging("Successfully building image block rotation and translation triplet loss")
+            inference.train()
             inference.cuda
         else:
             if args.shifttype == "shiftedloss":
                 loss = ShiftedLoss(hshift=args.shift_size, vshift=args.shift_size).cuda()
                 logging("Successfully building shifted triplet loss")
+                inference.train()
                 inference.cuda
             else:
                 if args.shifttype == "mseloss":
                     loss = MSELoss().cuda()
                     logging("Successfully building mse triplet loss")
+                    inference.train()
                     inference.cuda()
                 elif args.shifttype == "hammingdistance":
                     loss = HammingDistance().cuda()
                     logging("Successfully building hamming distance triplet loss")
+                    inference.train()
                     inference.cuda()
                 else:
                     raise RuntimeError('Model loss not found')
@@ -145,7 +151,7 @@ class Model(object):
             for batch_id, (x, _) in loop:
                 count += len(x)
                 x = x.cuda()
-                x = Variable(x, requires_grad=False)
+                # x = Variable(x, requires_grad=False)
                 fms = self.inference(x.view(-1, 3, x.size(2), x.size(3)))
                 # (batch_size, 12, 32, 32)
                 fms = fms.view(x.size(0), -1, fms.size(2), fms.size(3))
