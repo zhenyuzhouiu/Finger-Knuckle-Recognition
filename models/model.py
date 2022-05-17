@@ -6,7 +6,8 @@ import torchvision.utils
 from torch.autograd import Variable
 from models.net_model import ResidualFeatureNet, DeConvRFNet, ImageBlocksRFNet, RFNWithSTNet, ConvNet
 from models.efficientnet import EfficientNet
-from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation, ShiftedLoss
+from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation,\
+    ShiftedLoss, MSELoss, HammingDistance
 from torchvision import transforms
 import torchvision
 from torch.utils.data import DataLoader
@@ -32,7 +33,11 @@ model_dict = {
     "ConvNetEfficientNet": models.net_model.ConvNetEfficientNet(),
     "STNetConvNetEfficientNet": models.net_model.STNetConvNetEfficientNet(),
     "Net": models.net_model.Net(),
-    "FirstSTNetThenConvNetMiddleEfficientNet": models.net_model.FirstSTNetThenConvNetMiddleEfficientNet()
+    "FirstSTNetThenConvNetMiddleEfficientNet": models.net_model.FirstSTNetThenConvNetMiddleEfficientNet(),
+    "ConvNetEfficientSTNetBinary": models.net_model.ConvNetEfficientSTNetBinary(),
+    "ConvNetEfficientSTNet": models.net_model.ConvNetEfficientSTNet(),
+    "ConvNetEfficientSTNetConvNet": models.net_model.ConvNetEfficientSTNetConvNet(),
+    "ConvNetEfficientSTNetBinaryConvNet": models.net_model.ConvNetEfficientSTNetBinaryConvNet()
 }
 
 
@@ -75,15 +80,18 @@ class Model(object):
         if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet",
                               "ImageBlocksRFNet", "RFNWithSTNet", "ConvNet",
                               "STNetConvNet", "STNetConvNetEfficientNet",
-                              "ConvNetEfficientNet", "Net", "FirstSTNetThenConvNetMiddleEfficientNet"]:
+                              "ConvNetEfficientNet", "Net", "FirstSTNetThenConvNetMiddleEfficientNet",
+                              "ConvNetEfficientSTNetBinaryConvNet", "ConvNetEfficientSTNetConvNet",
+                              "ConvNetEfficientSTNet", "ConvNetEfficientSTNetBinary"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda()
 
         examples = iter(self.train_loader)
         example_data, example_target = examples.next()
+        # This place will raise RuntimeWarning: Iterating over a tensor might cause the trace to be incorrect.
         data = example_data.view(-1, 3, example_data.size(2), example_data.size(3)).cuda()
-        self.writer.add_graph(inference, data[0, :, :, :].unsqueeze(0))
+        self.writer.add_graph(inference, data)
 
         if args.shifttype == "wholeimagerotationandtranslation":
             loss = WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle).cuda()
@@ -100,7 +108,16 @@ class Model(object):
                 logging("Successfully building shifted triplet loss")
                 inference.cuda
             else:
-                raise RuntimeError('Model loss not found')
+                if args.shifttype == "mseloss":
+                    loss = MSELoss().cuda()
+                    logging("Successfully building mse triplet loss")
+                    inference.cuda()
+                elif args.shifttype == "hammingdistance":
+                    loss = HammingDistance().cuda()
+                    logging("Successfully building hamming distance triplet loss")
+                    inference.cuda()
+                else:
+                    raise RuntimeError('Model loss not found')
 
         return inference, loss
 
@@ -115,7 +132,7 @@ class Model(object):
             start_epoch = 1
 
         # 0-100: 0.01; 150-450: 0.001; 450-800:0.0001; 800-：0.00001
-        scheduler = MultiStepLR(self.optimizer, milestones=[3, 30, 400, 800, 1500], gamma=0.1)
+        scheduler = MultiStepLR(self.optimizer, milestones=[3, 150, 450, 800], gamma=0.1)
 
         for e in range(start_epoch, args.epochs + start_epoch):
             # self.exp_lr_scheduler(e, lr_decay_epoch=100)

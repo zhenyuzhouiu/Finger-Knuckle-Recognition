@@ -91,8 +91,8 @@ class Factory(torch.utils.data.Dataset):
 
         img = []
         # options = 'L' just convert image to gray image
-        # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, positive), options='RGB'), -1))
-        # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, anchor), options='RGB'), -1))
+        # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, positive), options='L'), -1))
+        # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, anchor), options='L'), -1))
         img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB', size=self.input_size))
         img.append(load_image(join(self.folder, selected_folder, positive), options='RGB', size=self.input_size))
 

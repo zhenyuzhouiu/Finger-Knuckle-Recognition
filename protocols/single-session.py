@@ -156,13 +156,13 @@ def genuine_imposter(test_path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--test_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/Session_1_128/1-104/",
+                    default="/home/zhenyuzhou/Desktop/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/Session_1_128/1-104/",
                     dest="test_path")
 parser.add_argument("--out_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/output/STNetConvNetEfficientNet-lr0.0001-WRS-protocol.npy",
+                    default="/home/zhenyuzhou/Desktop/Finger-Knuckle-Recognition/output/ConvNetVSRFNet/fkv3-session2_FirstSTNetThenConvNetMiddleEfficientNet-shiftedloss-lr0.01-500-protocol.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/fkv3(session2)_STNetConvNetEfficientNet-wholeimagerotationandtranslation-lr0.0001-subs8-angle5-a20-s4_2022-05-12-00-59/ckpt_epoch_1260.pth",
+                    default="/home/zhenyuzhou/Desktop/Finger-Knuckle-Recognition/checkpoint/fkv3-session2_FirstSTNetThenConvNetMiddleEfficientNet-shiftedloss-lr0.01-subs8-angle5-a20-s4_2022-05-13-13-45/ckpt_epoch_500.pth",
                     dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=4)
@@ -170,7 +170,7 @@ parser.add_argument('--block_size', type=int, dest="block_size", default=8)
 parser.add_argument("--rotate_angle", type=int, dest="rotate_angle", default=5)
 parser.add_argument("--top_k", type=int, dest="top_k", default=16)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)
-parser.add_argument('--model', type=str, dest='model', default="STNetConvNetEfficientNet")
+parser.add_argument('--model', type=str, dest='model', default="FirstSTNetThenConvNetMiddleEfficientNet")
 
 model_dict = {
     "RFN-128": models.net_model.ResidualFeatureNet(),
@@ -181,15 +181,17 @@ model_dict = {
     "ConvNet": models.net_model.ConvNet(),
     "STNetConvNet": models.net_model.STNetConvNet(),
     "ConvNetEfficientNet": models.net_model.ConvNetEfficientNet(),
-    "STNetConvNetEfficientNet": models.net_model.STNetConvNetEfficientNet()
+    "STNetConvNetEfficientNet": models.net_model.STNetConvNetEfficientNet(),
+    "Net": models.net_model.Net(),
+    "FirstSTNetThenConvNetMiddleEfficientNet": models.net_model.FirstSTNetThenConvNetMiddleEfficientNet()
 }
 
 args = parser.parse_args()
 inference = model_dict[args.model].cuda()
 inference.load_state_dict(torch.load(args.model_path))
 # inference = torch.jit.load("knuckle-script-polyu.pt")
-# Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
-Loss = models.loss_function.WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
+Loss = models.loss_function.ShiftedLoss(args.shift_size, args.shift_size)
+# Loss = models.loss_function.WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
 # Loss = models.loss_function.ImageBlockRotationAndTranslation(i_block_size=args.block_size, i_v_shift=args.shift_size,
 #                                                              i_h_shift=args.shift_size, i_angle=args.rotate_angle,
 #                                                              i_topk=args.top_k)

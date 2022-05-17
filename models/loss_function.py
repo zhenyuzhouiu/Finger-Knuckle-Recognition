@@ -200,6 +200,27 @@ class ShiftedLoss(torch.nn.Module):
         return min_dist.squeeze()
 
 
+class MSELoss(torch.nn.Module):
+    def __init__(self):
+        super(MSELoss, self).__init__()
+
+    def forward(self, i_fm1, i_fm2):
+        square_err = ((i_fm1 - i_fm2) ** 2).view(i_fm1.size(0), -1).sum(1)
+        num = i_fm1.view(i_fm1.size(0), -1).size(1)
+        mse = square_err / num
+        return mse
+
+
+class HammingDistance(torch.nn.Module):
+    def __init__(self):
+        super(HammingDistance, self).__init__()
+
+    def forward(self, i_fm1, i_fm2):
+        xor = torch.abs(torch.sub(i_fm1, i_fm2))
+        hamming_distance = (xor.view(i_fm1.size(0), -1)).sum(1)
+        return hamming_distance
+
+
 if __name__ == "__main__":
 
     mode = "eval"

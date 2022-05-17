@@ -286,7 +286,7 @@ class FirstSTNetThenConvNetMiddleEfficientNet(torch.nn.Module):
             nn.ReLU(True)
         )
         self.fc_loc = nn.Sequential(
-            nn.Linear(16 * 28 * 28, 28*28),
+            nn.Linear(16 * 28 * 28, 28 * 28),
             nn.ReLU(True),
             nn.Linear(28 * 28, 32),
             nn.ReLU(True),
@@ -972,3 +972,285 @@ class MultiCLAKNet(torch.nn.Module):
         out = F.relu(self.conv13(out))
 
         return out
+
+
+class ConvNetEfficientSTNetBinary(nn.Module):
+    def __init__(self):
+        super(ConvNetEfficientSTNetBinary, self).__init__()
+        # Initial convolution layers
+        self.feature = nn.Sequential(
+            # input shape:-> [bs, 3, 128, 128]
+            ConvLayer(3, 32, kernel_size=5, stride=2, bias=False),
+            nn.BatchNorm2d(num_features=32),
+            nn.ReLU(),
+            ConvLayer(32, 64, kernel_size=3, stride=2, bias=False),
+            nn.BatchNorm2d(num_features=64),
+            nn.ReLU(),
+            ConvLayer(64, 128, kernel_size=3, stride=1, bias=False),
+            nn.BatchNorm2d(num_features=128),
+            nn.ReLU(),
+            # EfficientNet MBlock
+            EfficientVSResidual(width_coefficient=1, depth_coefficient=1, drop_connect_rate=0.),
+            ConvLayer(128, 64, kernel_size=3, stride=1, bias=False),
+            nn.BatchNorm2d(num_features=64),
+            nn.ReLU(),
+            ConvLayer(64, 1, kernel_size=1, stride=1, bias=False),
+            nn.BatchNorm2d(num_features=1),
+            nn.Sigmoid()
+            # output shape:-> [bs, 1, 32, 32]
+        )
+
+        # binary threshold
+        self.threshold = nn.Sequential(
+            nn.Linear(in_features=1 * 32 * 32, out_features=32),
+            nn.ReLU(),
+            nn.Linear(in_features=32, out_features=1),
+            nn.Sigmoid()
+        )
+
+        self.localization = nn.Sequential(
+            nn.Conv2d(1, 8, kernel_size=7),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(8, 10, kernel_size=5),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True)
+        )
+        self.fc_loc = nn.Sequential(
+            nn.Linear(10 * 4 * 4, 32),
+            nn.ReLU(True),
+            nn.Linear(32, 3 * 2)
+        )
+
+        self.fc_loc[2].weight.data.zero_()
+        self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
+
+    def stn(self, x):
+        xs = self.localization(x)
+        xs = xs.view(-1, 10 * 4 * 4)
+        theta = self.fc_loc(xs)
+        theta = theta.view(-1, 2, 3)
+        grid = F.affine_grid(theta, x.size(), align_corners=True)
+        x = F.grid_sample(x, grid, align_corners=True)
+
+        return x
+
+    def binary(self, x):
+        xs = x.view(-1, 1 * 32 * 32)
+        xs = self.threshold(xs)
+        # xs.shape:-> [bs, 1]; x.shape:-> [bs, 1, 32, 32]
+        xs = xs.unsqueeze(-1).repeat_interleave(repeats=32, dim=1).repeat_interleave(repeats=32, dim=2)
+        xs = xs.unsqueeze(1)
+        xs = torch.sign(x - xs)
+        x = torch.relu(xs)
+
+        return x
+
+    def forward(self, x):
+        x = self.feature(x)
+        x = self.stn(x)
+        x = self.binary(x)
+
+        return x
+
+
+class ConvNetEfficientSTNet(nn.Module):
+    def __init__(self):
+        super(ConvNetEfficientSTNet, self).__init__()
+        # Initial convolution layers
+        self.feature = nn.Sequential(
+            # input shape:-> [bs, 3, 128, 128]
+            ConvLayer(3, 32, kernel_size=5, stride=2, bias=False),
+            nn.BatchNorm2d(num_features=32),
+            nn.ReLU(),
+            ConvLayer(32, 64, kernel_size=3, stride=2, bias=False),
+            nn.BatchNorm2d(num_features=64),
+            nn.ReLU(),
+            ConvLayer(64, 128, kernel_size=3, stride=1, bias=False),
+            nn.BatchNorm2d(num_features=128),
+            nn.ReLU(),
+            # EfficientNet MBlock
+            EfficientVSResidual(width_coefficient=1, depth_coefficient=1, drop_connect_rate=0.),
+            ConvLayer(128, 64, kernel_size=3, stride=1, bias=False),
+            nn.BatchNorm2d(num_features=64),
+            nn.ReLU(),
+            ConvLayer(64, 1, kernel_size=1, stride=1, bias=False),
+            nn.BatchNorm2d(num_features=1),
+            nn.ReLU()
+            # output shape:-> [bs, 1, 32, 32]
+        )
+
+        self.localization = nn.Sequential(
+            nn.Conv2d(1, 8, kernel_size=7),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(8, 10, kernel_size=5),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True)
+        )
+        self.fc_loc = nn.Sequential(
+            nn.Linear(10 * 4 * 4, 32),
+            nn.ReLU(True),
+            nn.Linear(32, 3 * 2)
+        )
+
+        self.fc_loc[2].weight.data.zero_()
+        self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
+
+    def stn(self, x):
+        xs = self.localization(x)
+        xs = xs.view(-1, 10 * 4 * 4)
+        theta = self.fc_loc(xs)
+        theta = theta.view(-1, 2, 3)
+        grid = F.affine_grid(theta, x.size(), align_corners=True)
+        x = F.grid_sample(x, grid, align_corners=True)
+
+        return x
+
+    def forward(self, x):
+        x = self.feature(x)
+        x = self.stn(x)
+
+        return x
+
+
+class ConvNetEfficientSTNetConvNet(nn.Module):
+    def __init__(self):
+        super(ConvNetEfficientSTNetConvNet, self).__init__()
+        # Initial convolution layers
+        # input shape:-> [bs, 3, 128, 128]
+        self.conv1 = ConvLayer(3, 32, kernel_size=5, stride=2, bias=False)
+        self.bn1 = nn.BatchNorm2d(num_features=32)
+        self.conv2 = ConvLayer(32, 64, kernel_size=3, stride=2, bias=False)
+        self.bn2 = nn.BatchNorm2d(num_features=64)
+        self.conv3 = ConvLayer(64, 128, kernel_size=3, stride=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(num_features=128)
+
+        # EfficientNet MBlock
+        self.efficient = EfficientVSResidual(width_coefficient=1, depth_coefficient=1, drop_connect_rate=0.)
+        # output shape:-> [bs, 128, 32, 32]
+
+        self.conv4 = ConvLayer(128, 64, kernel_size=3, stride=1, bias=False)
+        self.bn4 = nn.BatchNorm2d(num_features=64)
+        self.conv5 = ConvLayer(64, 1, kernel_size=1, stride=1, bias=False)
+        self.bn5 = nn.BatchNorm2d(num_features=1)
+        # output shape:-> [bs, 1, 32, 32]
+
+        self.localization = nn.Sequential(
+            nn.Conv2d(128, 64, kernel_size=7),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(64, 32, kernel_size=5),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True)
+        )
+        self.fc_loc = nn.Sequential(
+            nn.Linear(32 * 4 * 4, 32),
+            nn.ReLU(True),
+            nn.Linear(32, 3 * 2)
+        )
+
+        self.fc_loc[2].weight.data.zero_()
+        self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
+
+    def stn(self, x):
+        xs = self.localization(x)
+        xs = xs.view(-1, 32 * 4 * 4)
+        theta = self.fc_loc(xs)
+        theta = theta.view(-1, 2, 3)
+        grid = F.affine_grid(theta, x.size(), align_corners=True)
+        x = F.grid_sample(x, grid, align_corners=True)
+
+        return x
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = self.efficient(x)
+        x = self.stn(x)
+        x = F.relu(self.bn4(self.conv4(x)))
+        x = F.relu(self.bn5(self.conv5(x)))
+
+        return x
+
+
+class ConvNetEfficientSTNetBinaryConvNet(nn.Module):
+    def __init__(self):
+        super(ConvNetEfficientSTNetBinaryConvNet, self).__init__()
+        # Initial convolution layers
+        # input shape:-> [bs, 3, 128, 128]
+        self.conv1 = ConvLayer(3, 32, kernel_size=5, stride=2, bias=False)
+        self.bn1 = nn.BatchNorm2d(num_features=32)
+        self.conv2 = ConvLayer(32, 64, kernel_size=3, stride=2, bias=False)
+        self.bn2 = nn.BatchNorm2d(num_features=64)
+        self.conv3 = ConvLayer(64, 128, kernel_size=3, stride=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(num_features=128)
+
+        # EfficientNet MBlock
+        self.efficient = EfficientVSResidual(width_coefficient=1, depth_coefficient=1, drop_connect_rate=0.)
+        # output shape:-> [bs, 128, 32, 32]
+
+        self.conv4 = ConvLayer(128, 64, kernel_size=3, stride=1, bias=False)
+        self.bn4 = nn.BatchNorm2d(num_features=64)
+        self.conv5 = ConvLayer(64, 1, kernel_size=1, stride=1, bias=False)
+        self.bn5 = nn.BatchNorm2d(num_features=1)
+        # output shape:-> [bs, 1, 32, 32]
+
+        self.localization = nn.Sequential(
+            nn.Conv2d(128, 64, kernel_size=7),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(64, 32, kernel_size=5),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True)
+        )
+        self.fc_loc = nn.Sequential(
+            nn.Linear(32 * 4 * 4, 32),
+            nn.ReLU(True),
+            nn.Linear(32, 3 * 2)
+        )
+
+        self.fc_loc[2].weight.data.zero_()
+        self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
+
+        self.threshold = nn.Sequential(
+            nn.Conv2d(128, 128, groups=128, kernel_size=7),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(128, 128, groups=128, kernel_size=5),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(128, 128, groups=128, kernel_size=4),
+            nn.Sigmoid()
+        )
+
+    def stn(self, x):
+        xs = self.localization(x)
+        xs = xs.view(-1, 32 * 4 * 4)
+        theta = self.fc_loc(xs)
+        theta = theta.view(-1, 2, 3)
+        grid = F.affine_grid(theta, x.size(), align_corners=True)
+        x = F.grid_sample(x, grid, align_corners=True)
+
+        return x
+
+    def binary(self, x):
+        # x.shape:-> [bs, 128, 32, 32]
+        # xs.shape:-> [bs, 128, 1, 1]
+        xs = self.threshold(x)
+        xs = torch.sign(x - xs)
+        x = torch.relu(xs)
+        return x
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = self.efficient(x)
+        x = self.stn(x)
+        x = self.binary(x)
+        x = F.relu(self.bn4(self.conv4(x)))
+        x = F.relu(self.bn5(self.conv5(x)))
+
+        return x
