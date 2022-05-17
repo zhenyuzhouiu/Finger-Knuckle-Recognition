@@ -1001,11 +1001,21 @@ class ConvNetEfficientSTNetBinary(nn.Module):
         )
 
         # binary threshold
+        # self.threshold = nn.Sequential(
+        #     nn.Linear(in_features=1 * 32 * 32, out_features=32),
+        #     nn.ReLU(),
+        #     nn.Linear(in_features=32, out_features=1),
+        #     nn.Sigmoid()
+        # )
         self.threshold = nn.Sequential(
-            nn.Linear(in_features=1 * 32 * 32, out_features=32),
-            nn.ReLU(),
-            nn.Linear(in_features=32, out_features=1),
-            nn.Sigmoid()
+            nn.Conv2d(1, 8, kernel_size=7),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(8, 8, kernel_size=5),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(8, 1 , kernel_size=4),
+            nn.Sigmoid(),
         )
 
         self.localization = nn.Sequential(
@@ -1036,11 +1046,11 @@ class ConvNetEfficientSTNetBinary(nn.Module):
         return x
 
     def binary(self, x):
-        xs = x.view(-1, 1 * 32 * 32)
-        xs = self.threshold(xs)
+        # xs = x.view(-1, 1 * 32 * 32)
+        xs = self.threshold(x)
         # xs.shape:-> [bs, 1]; x.shape:-> [bs, 1, 32, 32]
-        xs = xs.unsqueeze(-1).repeat_interleave(repeats=32, dim=1).repeat_interleave(repeats=32, dim=2)
-        xs = xs.unsqueeze(1)
+        # xs = xs.unsqueeze(-1).repeat_interleave(repeats=32, dim=1).repeat_interleave(repeats=32, dim=2)
+        # xs = xs.unsqueeze(1)
         xs = torch.sign(x - xs)
         x = torch.relu(xs)
 
