@@ -150,13 +150,13 @@ def genuine_imposter(test_path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--test_path", type=str,
-                    default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV3/Segmented/two-session/",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/two-session/",
                     dest="test_path")
 parser.add_argument("--out_path", type=str,
                     default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/two-session/fkv3-rfn/d3-a5-topk12-protocol3.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/fkv3(session_1_105_221)_mRFN-128-stimageblockwithgradient-losstriplet-lr0.001-subd3-subs8-angle5-a20-nna40-s3_2022-04-28-20-41/ckpt_epoch_880.pth",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/3d1s3d_RFN-128-shiftedloss-lr0.001-subs8-angle5-a20-s4_2022-05-12-20-21/ckpt_epoch_4280.pth",
                     dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
