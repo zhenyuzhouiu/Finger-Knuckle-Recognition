@@ -19,10 +19,8 @@ def build_parser():
     parser = argparse.ArgumentParser()
 
     # Checkpoint Options
-    parser.add_argument('--logdir', type=str, dest='logdir', default='./runs/checkstnetandbinary/')
-
     parser.add_argument('--checkpoint_dir', type=str,
-                        dest='checkpoint_dir', default='./checkpoint/checkstnetandbinary/')
+                        dest='checkpoint_dir', default='./checkpoint/')
     parser.add_argument('--db_prefix', dest='db_prefix', default='fkv3-session2')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval', default=20)
 
@@ -71,35 +69,23 @@ def main():
         )
     )
 
-    args.logdir = os.path.join(
-        args.logdir,
-        "{}_{}-{}-lr{}-subs{}-angle{}-a{}-s{}_{}".format(
-            args.db_prefix,
-            args.model,
-            args.shifttype,
-            float(args.learning_rate),
-            int(args.block_size),
-            int(args.rotate_angle),
-            int(args.alpha),
-            int(args.shift_size),
-            this_datetime
-        )
-    )
+    logdir = os.path.join(args.checkpoint_dir, 'runs')
+
 
     print("[*] Target Checkpoint Path: {}".format(args.checkpoint_dir))
     if not os.path.exists(args.checkpoint_dir):
         os.makedirs(args.checkpoint_dir)
 
-    print("[*] Target Logdir Path: {}".format(args.logdir))
-    if not os.path.exists(args.logdir):
-        os.makedirs(args.logdir)
+    print("[*] Target Logdir Path: {}".format(logdir))
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
 
     hyper_parameter = os.path.join(args.checkpoint_dir, 'hyper_parameter.txt')
     with open(hyper_parameter, 'w') as f:
         for key, value in vars(args).items():
             f.write('%s:%s\n' % (key, value))
 
-    writer = SummaryWriter(log_dir=args.logdir)
+    writer = SummaryWriter(log_dir=logdir)
     model_ = Model(args, writer=writer)
     model_.triplet_train(args)
 
