@@ -4,13 +4,21 @@ import torch.nn.functional as F
 import math
 import sys
 from torch.autograd import Variable
-import numpy as np
-import cv2
+
+# The whole image rotation and translation loss cannot back propagation by cv2;
+# But it can back propagation by affine_grid and grid_sample
 
 
-def generate_theta(i_radian, i_tx, i_ty, i_batch_size, i_h, i_w, i_dtype):
+def generate_theta_undeformable(i_radian, i_tx, i_ty, i_batch_size, i_h, i_w, i_dtype):
     theta = torch.tensor([[math.cos(i_radian), math.sin(-i_radian) * i_h / i_w, i_tx],
                           [math.sin(i_radian) * i_w / i_h, math.cos(i_radian), i_ty]],
+                         dtype=i_dtype).unsqueeze(0).repeat(i_batch_size, 1, 1)
+    return theta
+
+
+def generate_theta_deformable(i_radian, i_tx, i_ty, i_batch_size, i_h, i_w, i_dtype):
+    theta = torch.tensor([[math.cos(i_radian), math.sin(-i_radian), i_tx],
+                          [math.sin(i_radian), math.cos(i_radian), i_ty]],
                          dtype=i_dtype).unsqueeze(0).repeat(i_batch_size, 1, 1)
     return theta
 
@@ -29,9 +37,9 @@ def mse_loss(src, target):
         return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
 
 
-class WholeImageRotationAndTranslation(torch.nn.Module):
+class WholeImageRotationAndTranslationUndeformable(torch.nn.Module):
     def __init__(self, i_v_shift, i_h_shift, i_angle):
-        super(WholeImageRotationAndTranslation, self).__init__()
+        super(WholeImageRotationAndTranslationUndeformable, self).__init__()
         self.v_shift = i_v_shift
         self.h_shift = i_h_shift
         self.angle = i_angle
@@ -54,7 +62,48 @@ class WholeImageRotationAndTranslation(torch.nn.Module):
                     radian_a = a * math.pi / 180.
                     ratio_tx = 2 * tx / w
                     ratio_ty = 2 * ty / h
-                    theta = generate_theta(radian_a, ratio_tx, ratio_ty, b, h, w, i_fm1.dtype)
+                    theta = generate_theta_undeformable(radian_a, ratio_tx, ratio_ty, b, h, w, i_fm1.dtype)
+                    grid = F.affine_grid(theta, i_fm2.size(), align_corners=True).to(i_fm1.device)
+                    r_fm2 = F.grid_sample(i_fm2, grid, align_corners=True)
+                    r_mask = F.grid_sample(mask, grid, align_corners=True)
+                    # mean_se.shape: -> (bs, )
+                    mean_se = rotate_mse_loss(i_fm1, r_fm2, r_mask)
+                    if n_affine == 0:
+                        min_dist = mean_se
+                    else:
+                        min_dist = torch.vstack([min_dist, mean_se])
+                    n_affine += 1
+
+        min_dist, _ = torch.min(min_dist, dim=0)
+        return min_dist
+
+
+class WholeImageRotationAndTranslationDeformable(torch.nn.Module):
+    def __init__(self, i_v_shift, i_h_shift, i_angle):
+        super(WholeImageRotationAndTranslationDeformable, self).__init__()
+        self.v_shift = i_v_shift
+        self.h_shift = i_h_shift
+        self.angle = i_angle
+
+    def forward(self, i_fm1, i_fm2):
+        b, c, h, w = i_fm1.shape
+        mask = torch.ones_like(i_fm2, device=i_fm1.device)
+        n_affine = 0
+        if self.training:
+            min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=True, device=i_fm1.device)
+        else:
+            min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=False, device=i_fm1.device)
+
+        if self.v_shift == self.h_shift == 0:
+            min_dist = mse_loss(i_fm1, i_fm2).cuda()
+            return min_dist
+        for tx in range(-self.h_shift, self.h_shift + 1):
+            for ty in range(-self.v_shift, self.v_shift + 1):
+                for a in range(-self.angle, self.angle + 1):
+                    radian_a = a * math.pi / 180.
+                    ratio_tx = 2 * tx / w
+                    ratio_ty = 2 * ty / h
+                    theta = generate_theta_deformable(radian_a, ratio_tx, ratio_ty, b, h, w, i_fm1.dtype)
                     grid = F.affine_grid(theta, i_fm2.size(), align_corners=True).to(i_fm1.device)
                     r_fm2 = F.grid_sample(i_fm2, grid, align_corners=True)
                     r_mask = F.grid_sample(mask, grid, align_corners=True)
@@ -133,7 +182,7 @@ class ImageBlockRotationAndTranslation(torch.nn.Module):
                             sub_fm2_b, sub_fm2_c, sub_fm2_h, sub_fm2_w = sub_fm2.shape
                             mask = torch.ones_like(sub_fm2, dtype=i_fm1.dtype, device=i_fm1.device)
                             radian_a = a * math.pi / 180.
-                            theta = generate_theta(radian_a, 0, 0, sub_fm2_b, sub_fm2_h, sub_fm2_w, i_fm1.dtype)
+                            theta = generate_theta_undeformable(radian_a, 0, 0, sub_fm2_b, sub_fm2_h, sub_fm2_w, i_fm1.dtype)
                             grid = F.affine_grid(theta, sub_fm2.size(), align_corners=True).to(i_fm1.device)
                             r_sub_fm2 = F.grid_sample(sub_fm2, grid, align_corners=True)
                             r_mask = F.grid_sample(mask, grid, align_corners=True)
@@ -202,107 +251,6 @@ class ShiftedLoss(torch.nn.Module):
         return min_dist.squeeze()
 
 
-class WholeRotationShiftedLoss(torch.nn.Module):
-    def __init__(self, hshift, vshift, angle):
-        super(WholeRotationShiftedLoss, self).__init__()
-        self.hshift = hshift
-        self.vshift = vshift
-        self.angle = angle
-
-    def rotate_mse_loss(self, src, target, mask):
-        # if isinstance(src, torch.autograd.Variable):
-        #     return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
-        # else:
-        #     return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
-        se = (src - target) ** 2
-        mask_se = se * mask
-        sum_se = mask_se.view(src.size(0), -1).sum(1)
-        sum = mask.view(src.size(0), -1).sum(1)
-        mse = sum_se / sum
-        return mse
-
-    def mse_loss(self, src, target):
-        if isinstance(src, torch.autograd.Variable):
-            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
-        else:
-            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
-
-    def forward(self, fm1, fm2):
-        # C * H * W
-        bs, _, h, w = fm1.size()
-        if w < self.hshift:
-            self.hshift = self.hshift % w
-        if h < self.vshift:
-            self.vshift = self.vshift % h
-
-        # min_dist shape (bs, )  & sys.float_info.max is to get the max float value
-        # min_dist save the maximal float value
-        min_dist = torch.ones(bs, device=fm1.device) * sys.float_info.max
-        # if isinstance(fm1, torch.autograd.Variable):
-        #     min_dist = Variable(min_dist, requires_grad=True)
-        if fm1.requires_grad:
-            min_dist = Variable(min_dist, requires_grad=True)
-        else:
-            min_dist = Variable(min_dist, requires_grad=False)
-
-        if self.hshift == 0 and self.vshift == 0:
-            dist = self.mse_loss(fm1, fm2).to(fm1.device)
-            min_dist, _ = torch.min(torch.stack([min_dist, dist]), 0)
-            return min_dist
-
-        for bh in range(-self.hshift, self.hshift + 1):
-            for bv in range(-self.vshift, self.vshift + 1):
-                if bh >= 0:
-                    ref1, ref2 = fm1[:, :, :, :w - bh], fm2[:, :, :, bh:]
-                else:
-                    ref1, ref2 = fm1[:, :, :, -bh:], fm2[:, :, :, :w + bh]
-
-                if bv >= 0:
-                    ref1, ref2 = ref1[:, :, :h - bv, :], ref2[:, :, bv:, :]
-                else:
-                    ref1, ref2 = ref1[:, :, -bv:, :], ref2[:, :, :h + bv, :]
-
-                for theta in range(-self.angle, self.angle + 1):
-                    overlap_bs, overlap_c, overlap_h, overlap_w = ref1.size()
-                    M = cv2.getRotationMatrix2D(center=(overlap_w / 2, overlap_h / 2), angle=theta, scale=1)
-                    ref2 = torch.squeeze(ref2, dim=1)
-                    n_ref2 = ref2.detach().cpu().numpy()
-                    n_ref2 = n_ref2.transpose(1, 2, 0)
-                    if overlap_bs > 512:
-                        num_chuncks = overlap_bs // 512
-                        num_reminder = overlap_bs % 512
-                        r_ref2 = np.zeros(n_ref2.shape)
-                        for nc in range(num_chuncks):
-                            nc_ref2 = n_ref2[:, :, 0 + nc * 512:512 + nc * 512]
-                            r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=(overlap_w, overlap_h))
-                            r_ref2[:, :, 0 + nc * 512:512 + nc * 512] = r_nc_ref2
-                        if num_reminder > 0:
-                            nc_ref2 = n_ref2[:, :, 512 + nc * 512:]
-                            r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=(overlap_w, overlap_h))
-                            if r_nc_ref2.ndim == 2:
-                                r_nc_ref2 = np.expand_dims(r_nc_ref2, axis=-1)
-                            r_ref2[:, :, 512 + nc * 512:] = r_nc_ref2
-                    else:
-                        r_ref2 = cv2.warpAffine(n_ref2, M=M, dsize=(overlap_w, overlap_h))
-                    # r_ref2 = rotate(n_ref2, angle=theta, reshape=False)
-
-                    if r_ref2.ndim == 2:
-                        r_ref2 = np.expand_dims(r_ref2, axis=-1)
-                    r_ref2 = torch.from_numpy(r_ref2).to(fm1.device)
-                    r_ref2 = r_ref2.permute(2, 0, 1).unsqueeze(1)
-
-                    mask = np.ones([overlap_h, overlap_w])
-                    r_mask = cv2.warpAffine(mask, M=M, dsize=(overlap_w, overlap_h))
-                    # r_mask = rotate(mask, angle=theta, reshape=False)
-                    r_mask = torch.from_numpy(r_mask).to(fm1.device)
-                    r_mask = r_mask.unsqueeze(0).unsqueeze(0).repeat(overlap_bs, overlap_c, 1, 1)
-
-                    dist = self.rotate_mse_loss(ref1, r_ref2, r_mask).to(fm1.device)
-
-                    min_dist, _ = torch.min(torch.stack([min_dist.squeeze(), dist.squeeze()]), 0)
-        return min_dist.squeeze()
-
-
 class MSELoss(torch.nn.Module):
     def __init__(self):
         super(MSELoss, self).__init__()
@@ -327,16 +275,16 @@ class HammingDistance(torch.nn.Module):
 if __name__ == "__main__":
 
     mode = "train"
-    loss_type = "WholeRotationShiftedLoss"
-    if loss_type == "WholeImageRotationAndTranslation":
+    loss_type = "WholeImageRotationAndTranslationUndeformable"
+    if loss_type == "WholeImageRotationAndTranslationUndeformable":
         if mode == "eval":
-            loss = WholeImageRotationAndTranslation(i_v_shift=3, i_h_shift=3, i_angle=3).eval()
+            loss = WholeImageRotationAndTranslationUndeformable(i_v_shift=3, i_h_shift=3, i_angle=3).eval()
             input1 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
             input2 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
             min_dist = loss(input1, input2)
             print(min_dist)
         else:
-            loss = WholeImageRotationAndTranslation(i_v_shift=3, i_h_shift=3, i_angle=3).train().cuda()
+            loss = WholeImageRotationAndTranslationUndeformable(i_v_shift=3, i_h_shift=3, i_angle=3).train().cuda()
             input1 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
             input2 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
             min_dist = loss(input1, input2)
@@ -368,21 +316,6 @@ if __name__ == "__main__":
                 print(min_dist)
             else:
                 loss = ShiftedLoss(hshift=3, vshift=3).train().cuda()
-                input1 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
-                input2 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
-                min_dist = loss(input1, input2)
-                print(min_dist)
-                test = gradcheck(loss, [input1, input2])
-                print("Are the gradients of whole image rotation and translation correct: ", test)
-        elif loss_type == "WholeRotationShiftedLoss":
-            if mode == "eval":
-                loss = WholeRotationShiftedLoss(hshift=3, vshift=3, angle=3).eval()
-                input1 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
-                input2 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
-                min_dist = loss(input1, input2)
-                print(min_dist)
-            else:
-                loss = WholeRotationShiftedLoss(hshift=3, vshift=3, angle=3).train().cuda()
                 input1 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
                 input2 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).cuda()
                 min_dist = loss(input1, input2)
