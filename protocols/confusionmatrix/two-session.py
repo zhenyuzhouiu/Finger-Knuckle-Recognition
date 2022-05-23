@@ -35,7 +35,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import models.loss_function, models.net_model
 from protocol_util import *
 from protocol_util import *
-import models.efficientnet
+import models.EfficientNetV2
 
 from torchvision import transforms
 from torch.utils.data import DataLoader

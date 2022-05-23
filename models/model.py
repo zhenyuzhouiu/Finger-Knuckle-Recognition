@@ -4,15 +4,14 @@ import torch
 from tqdm import tqdm
 import torchvision.utils
 from torch.autograd import Variable
-from models.net_model import ResidualFeatureNet, DeConvRFNet, ImageBlocksRFNet, RFNWithSTNet, ConvNet
-from models.efficientnet import EfficientNet
+from models.net_model import ResidualFeatureNet, DeConvRFNet, RFNWithSTNet, ConvNet
 from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation, \
     ShiftedLoss, MSELoss, HammingDistance
 from torchvision import transforms
 import torchvision
 from torch.utils.data import DataLoader
 from data.data_factory import Factory
-import models
+from models.EfficientNetV2 import fk_efficientnetv2_s
 
 
 def logging(msg, suc=True):
@@ -23,22 +22,11 @@ def logging(msg, suc=True):
 
 
 model_dict = {
-    "RFN-128": ResidualFeatureNet(),
-    "ImageBlocksRFNet": ImageBlocksRFNet(),
-    "DeConvRFNet": DeConvRFNet(),
-    "EfficientNet": EfficientNet(width_coefficient=1.0, depth_coefficient=1.0, dropout_rate=0.2),
-    "RFNWithSTNet": RFNWithSTNet(),
-    "ConvNet": ConvNet(),
-    "STNetConvNet": models.net_model.STNetConvNet(),
-    "ConvNetEfficientNet": models.net_model.ConvNetEfficientNet(),
-    "STNetConvNetEfficientNet": models.net_model.STNetConvNetEfficientNet(),
-    "Net": models.net_model.Net(),
-    "FirstSTNetThenConvNetMiddleEfficientNet": models.net_model.FirstSTNetThenConvNetMiddleEfficientNet(),
-    "ConvNetEfficientSTNetBinary": models.net_model.ConvNetEfficientSTNetBinary(),
-    "ConvNetEfficientSTNet": models.net_model.ConvNetEfficientSTNet(),
-    "ConvNetEfficientSTNetConvNet": models.net_model.ConvNetEfficientSTNetConvNet(),
-    "ConvNetEfficientSTNetBinaryConvNet": models.net_model.ConvNetEfficientSTNetBinaryConvNet(),
-    "RFNBinaryConvNet": models.net_model.RFNBinaryConvNet()
+    "RFN-128": ResidualFeatureNet().cuda(),
+    "DeConvRFNet": DeConvRFNet().cuda(),
+    "EfficientNet": fk_efficientnetv2_s().cuda(),
+    "RFNWithSTNet": RFNWithSTNet().cuda(),
+    "ConvNet": ConvNet().cuda(),
 }
 
 
@@ -78,31 +66,26 @@ class Model(object):
                 param_group['lr'] *= lr_decay
 
     def _build_model(self, args):
-        if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet",
-                              "ImageBlocksRFNet", "RFNWithSTNet", "ConvNet",
-                              "STNetConvNet", "STNetConvNetEfficientNet",
-                              "ConvNetEfficientNet", "Net", "FirstSTNetThenConvNetMiddleEfficientNet",
-                              "ConvNetEfficientSTNetBinaryConvNet", "ConvNetEfficientSTNetConvNet",
-                              "ConvNetEfficientSTNet", "ConvNetEfficientSTNetBinary", "RFNBinaryConvNet"]:
+        if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet", "RFNWithSTNet", "ConvNet"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda().eval()
 
-        examples = iter(self.train_loader)
-        example_data, example_target = examples.next()
-        # This place will raise RuntimeWarning: Iterating over a tensor might cause the trace to be incorrect.
-        data = example_data.view(-1, 3, example_data.size(2), example_data.size(3)).cuda()
-        data = Variable(data, requires_grad=False)
-        self.writer.add_graph(inference, data)
+        # examples = iter(self.train_loader)
+        # example_data, example_target = examples.next()
+        # # This place will raise RuntimeWarning: Iterating over a tensor might cause the trace to be incorrect.
+        # data = example_data.view(-1, 3, example_data.size(2), example_data.size(3)).cuda()
+        # data = Variable(data, requires_grad=False)
+        # self.writer.add_graph(inference, data)
 
         if args.shifttype == "wholeimagerotationandtranslation":
-            loss = WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle).cuda()
+            loss = WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
             logging("Successfully building whole image rotation and translation triplet loss")
             inference.train()
             inference.cuda()
         elif args.shifttype == "imageblockrotationandtranslation":
             loss = ImageBlockRotationAndTranslation(args.block_size, args.shift_size, args.shift_size,
-                                                    args.rotate_angle).cuda()
+                                                    args.rotate_angle)
             logging("Successfully building image block rotation and translation triplet loss")
             inference.train()
             inference.cuda
@@ -163,13 +146,18 @@ class Model(object):
 
                 nneg = neg_fm.size(1)
                 neg_fm = neg_fm.view(-1, 1, neg_fm.size(2), neg_fm.size(3))
+                anchor_fm = anchor_fm.cpu()
+                neg_fm = neg_fm.cpu()
+                pos_fm = pos_fm.cpu()
                 an_loss = self.loss(anchor_fm.repeat(1, nneg, 1, 1).view(-1, 1, anchor_fm.size(2), anchor_fm.size(3)),
                                     neg_fm)
+                an_loss = an_loss.cuda()
                 # an_loss.shape:-> (batch_size, 10)
                 # min(1) will get min value and the corresponding indices
                 # min(1)[0]
                 an_loss = an_loss.view((-1, nneg)).min(1)[0]
                 ap_loss = self.loss(anchor_fm, pos_fm)
+                ap_loss = ap_loss.cuda()
 
                 sstl = ap_loss - an_loss + args.alpha
                 sstl = torch.clamp(sstl, min=0)

@@ -23,7 +23,7 @@ import torch
 import argparse
 from torch.autograd import Variable
 import models.loss_function, models.net_model
-import models.efficientnet
+import models.EfficientNetV2
 from protocol_util import *
 from torchvision import transforms
 from inspect import getsourcefile

@@ -6,7 +6,7 @@ import torchvision.utils
 from torch import nn, optim
 from models import loss_function
 from models.net_common import ConvLayer
-from models.efficientnet import EfficientVSResidual
+from models.EfficientNetV2 import EfficientVSResidual
 import torch.nn.functional as F
 
 

@@ -16,7 +16,7 @@ import numpy as np
 import torch
 import argparse
 from torch.autograd import Variable
-import models.efficientnet
+import models.EfficientNetV2
 import models.loss_function, models.net_model
 from protocol_util import *
 from torchvision import transforms
