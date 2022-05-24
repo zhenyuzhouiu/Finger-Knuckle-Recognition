@@ -80,11 +80,11 @@ class DeConvRFNet(torch.nn.Module):
     def __init__(self):
         super(DeConvRFNet, self).__init__()
         # Initial convolution layers
-        self.conv1 = DeformableConv2d2v(3, 32, kernel_size=5, stride=2)
+        self.conv1 = DeformableConv2d2v(3, 32, kernel_size=5, stride=2, bias=False)
         self.bn1 = torch.nn.BatchNorm2d(num_features=32)
-        self.conv2 = DeformableConv2d2v(32, 64, kernel_size=3, stride=2)
+        self.conv2 = DeformableConv2d2v(32, 64, kernel_size=3, stride=2, bias=False)
         self.bn2 = torch.nn.BatchNorm2d(num_features=64)
-        self.conv3 = DeformableConv2d2v(64, 128, kernel_size=3, stride=1)
+        self.conv3 = DeformableConv2d2v(64, 128, kernel_size=3, stride=1, bias=False)
         self.bn3 = torch.nn.BatchNorm2d(num_features=128)
         self.resid1 = ResidualBlock(128)
         self.resid2 = ResidualBlock(128)
@@ -103,9 +103,10 @@ class DeConvRFNet(torch.nn.Module):
         resid2 = self.resid1(resid1)
         resid3 = self.resid1(resid2)
         resid4 = self.resid1(resid3)
-        conv4 = F.relu(self.bn4(self.conv4(resid4)))
-        conv5 = F.relu(self.bn5(self.conv5(conv4)))
-
+        # conv4 = F.relu((self.bn4(self.conv4(resid4))))
+        # conv5 = F.relu(self.bn5(self.conv5(conv4)))
+        conv4 = F.relu(self.conv4(resid4))
+        conv5 = F.relu(self.conv5(conv4))
         return conv5
 
 

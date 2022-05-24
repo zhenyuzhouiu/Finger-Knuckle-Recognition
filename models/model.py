@@ -22,7 +22,7 @@ def logging(msg, suc=True):
 
 
 model_dict = {
-    "RFN-128": ResidualFeatureNet().cuda(),
+    "RFNet": ResidualFeatureNet().cuda(),
     "DeConvRFNet": DeConvRFNet().cuda(),
     "EfficientNet": fk_efficientnetv2_s().cuda(),
     "RFNWithSTNet": RFNWithSTNet().cuda(),
@@ -36,7 +36,7 @@ class Model(object):
         self.batch_size = args.batch_size
         self.train_loader, self.dataset_size = self._build_dataset_loader(args)
         self.inference, self.loss = self._build_model(args)
-        self.optimizer = torch.optim.SGD(self.inference.parameters(), args.learning_rate)
+        self.optimizer = torch.optim.Adagrad(self.inference.parameters(), args.learning_rate)
 
     def _build_dataset_loader(self, args):
         transform = transforms.Compose([
@@ -66,7 +66,7 @@ class Model(object):
                 param_group['lr'] *= lr_decay
 
     def _build_model(self, args):
-        if args.model not in ["RFN-128", "DeConvRFNet", "EfficientNet", "RFNWithSTNet", "ConvNet"]:
+        if args.model not in ["RFNet", "DeConvRFNet", "EfficientNet", "RFNWithSTNet", "ConvNet"]:
             raise RuntimeError('Model not found')
 
         inference = model_dict[args.model].cuda().eval()
@@ -122,7 +122,7 @@ class Model(object):
             start_epoch = 1
 
         # 0-100: 0.01; 150-450: 0.001; 450-800:0.0001; 800-：0.00001
-        scheduler = MultiStepLR(self.optimizer, milestones=[1000, 3000], gamma=0.1)
+        scheduler = MultiStepLR(self.optimizer, milestones=[10,  500, 1000], gamma=0.1)
 
         for e in range(start_epoch, args.epochs + start_epoch):
             # self.exp_lr_scheduler(e, lr_decay_epoch=100)
@@ -135,7 +135,7 @@ class Model(object):
             for batch_id, (x, _) in loop:
                 count += len(x)
                 x = x.cuda()
-                # x = Variable(x, requires_grad=False)
+                x = Variable(x, requires_grad=False)
                 fms = self.inference(x.view(-1, 3, x.size(2), x.size(3)))
                 # (batch_size, 12, 32, 32)
                 fms = fms.view(x.size(0), -1, fms.size(2), fms.size(3))

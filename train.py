@@ -20,25 +20,25 @@ def build_parser():
 
     # Checkpoint Options
     parser.add_argument('--checkpoint_dir', type=str,
-                        dest='checkpoint_dir', default='./checkpoint/EfficientNet/')
-    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv3-session2')
+                        dest='checkpoint_dir', default='./checkpoint/DeConvRFNet/')
+    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv1')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval', default=20)
 
     # Dataset Options
     parser.add_argument('--train_path', type=str, dest='train_path',
-                        default='./dataset/PolyUKnuckleV3/Session_2_128/')
+                        default='./dataset/PolyUKnuckleV1/train_set/')
 
     # Training Strategy
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
-    parser.add_argument('--epochs', type=int, dest='epochs', default=6000)
-    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-4)
+    parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
+    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-2)
 
     # Training Logging Interval
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
     # Pre-defined Options
     parser.add_argument('--shifttype', type=str, dest='shifttype', default='shiftedloss')
-    parser.add_argument('--alpha', type=float, dest='alpha', default=17)
-    parser.add_argument('--model', type=str, dest='model', default="RFN-128")
+    parser.add_argument('--alpha', type=float, dest='alpha', default=10)
+    parser.add_argument('--model', type=str, dest='model', default="DeConvRFNet")
     parser.add_argument('--input_size', type=int, dest='input_size', default=128)
     parser.add_argument('--shifted_size', type=int, dest='shift_size', default=4)
     parser.add_argument('--block_size', type=int, dest="block_size", default=8)
