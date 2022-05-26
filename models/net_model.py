@@ -184,3 +184,4 @@ class RFNWithSTNet(torch.nn.Module):
         out = self.stn(conv5)
 
         return out
+

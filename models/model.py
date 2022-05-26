@@ -36,7 +36,7 @@ class Model(object):
         self.batch_size = args.batch_size
         self.train_loader, self.dataset_size = self._build_dataset_loader(args)
         self.inference, self.loss = self._build_model(args)
-        self.optimizer = torch.optim.Adagrad(self.inference.parameters(), args.learning_rate)
+        self.optimizer = torch.optim.SGD(self.inference.parameters(), args.learning_rate)
 
     def _build_dataset_loader(self, args):
         transform = transforms.Compose([

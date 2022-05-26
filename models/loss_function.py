@@ -1,11 +1,13 @@
-import torch
-from torch.autograd.gradcheck import gradcheck
-import torch.nn.functional as F
 import math
 import sys
+
+import torch
+import torch.nn.functional as F
 from torch.autograd import Variable
-import numpy as np
-import cv2
+from torch.autograd.gradcheck import gradcheck
+
+torch.backends.cudnn.deterministic = True
+
 
 # The whole image rotation and translation loss cannot back propagation by cv2;
 # But it can back propagation by affine_grid and grid_sample
@@ -52,6 +54,7 @@ class WholeImageRotationAndTranslation(torch.nn.Module):
     The grid_sample is nondeterministic when using CUDA backend
     So I recommend to use CPU
     """
+
     def __init__(self, i_v_shift, i_h_shift, i_angle):
         super(WholeImageRotationAndTranslation, self).__init__()
         self.v_shift = i_v_shift
@@ -245,22 +248,84 @@ class HammingDistance(torch.nn.Module):
         return hamming_distance
 
 
+class AttentionScore(torch.nn.Module):
+    """
+    1:-> input feature maps' shape is [bs, 1, 32, 32]
+    2:-> split feature maps to 8x8 sub-images,
+    3:-> one sub-image compare to the another feature maps to calculate the similarity
+    4:-> generate [bs, 4x4, 32, 32] channels attention score
+         the attention score is bigger when two feature maps are more similarity
+
+    """
+
+    def __init__(self, i_subsize=8):
+        super(AttentionScore, self).__init__()
+        self.subsize = i_subsize
+        self.reflection_pad = torch.nn.ReflectionPad2d(3)
+
+    def forward(self, i_fm1, i_fm2):
+        # torch.cat, torch.stack, torch.chunk, torch.split
+        # view operator cannot work, because it will firstly reshape the tensor with row
+        # feature_kernel = i_fm1.view(bs, -1, 8, 8)
+        # permute operator is just change dimension sequence
+        bs, _, h, w = i_fm1.shape
+        reflection_fm2 = self.reflection_pad(i_fm2)
+        attention_score = torch.zeros([bs, ], dtype=i_fm1.dtype, device=i_fm1.device)
+        for b in range(bs):
+            feature_kernel = torch.zeros([16, 8, 8], dtype=i_fm1.dtype, device=i_fm1.device)
+            for i in range(4):
+                for j in range(4):
+                    feature_kernel[i * 4 + j, :, :] = i_fm1[b, :, 8 * i:8 * (1 + i), 8 * j:8 * (1 + j)].squeeze()
+            # attention shape:-> [1, 16, 16, 16]
+            feature_kernel = feature_kernel.unsqueeze(1)
+            attention = torch.nn.functional.conv2d(input=reflection_fm2[b, :, :, :].unsqueeze(0), weight=feature_kernel,
+                                                   bias=None, stride=2, padding=0)
+            # attention_similarity:-> [1, 1, 16, 16]
+            attention_similarity, _ = torch.max(attention, dim=1)
+            # attention_score:-> [1, 1]
+            attention_sum = torch.sum(attention_similarity)
+            attention_score[b,] = torch.exp(-attention_sum)
+
+        return attention_score
+
+
 if __name__ == "__main__":
 
     mode = "train"
-    if mode == "eval":
-        loss = WholeImageRotationAndTranslation(i_v_shift=3, i_h_shift=3, i_angle=3).eval()
-        input1 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
-        input2 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
-        min_dist = loss(input1, input2)
-        print(min_dist)
+    loss = "AttentionScore"
+    if loss == "AttentionScore":
+        if mode == "eval":
+            loss = AttentionScore().eval()
+            input1 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
+            input2 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
+            min_dist = loss(input1, input2)
+            print(min_dist)
+        else:
+            loss = AttentionScore().train()
+            input1 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).repeat(2,
+                                                                                                                    1,
+                                                                                                                    1,
+                                                                                                                    1)
+            input2 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0).repeat(2,
+                                                                                                                    1,
+                                                                                                                    1,
+                                                                                                                    1)
+            min_dist = loss(input1, input2)
+            print(min_dist)
+            test = gradcheck(loss, [input1, input2])
+            print("Are the gradients of whole image rotation and translation with undeformable correct: ", test)
     else:
-        loss = WholeImageRotationAndTranslation(i_v_shift=3, i_h_shift=3, i_angle=3).train()
-        input1 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0)
-        input2 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0)
-        min_dist = loss(input1, input2)
-        print(min_dist)
-        test = gradcheck(loss, [input1, input2])
-        print("Are the gradients of whole image rotation and translation with undeformable correct: ", test)
-
-
+        if mode == "eval":
+            loss = WholeImageRotationAndTranslation(i_v_shift=3, i_h_shift=3, i_angle=3).eval()
+            input1 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
+            input2 = torch.randn([5, 5], dtype=torch.double, requires_grad=False).unsqueeze(0).unsqueeze(0)
+            min_dist = loss(input1, input2)
+            print(min_dist)
+        else:
+            loss = WholeImageRotationAndTranslation(i_v_shift=3, i_h_shift=3, i_angle=3).train()
+            input1 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0)
+            input2 = torch.randn([32, 32], dtype=torch.double, requires_grad=True).unsqueeze(0).unsqueeze(0)
+            min_dist = loss(input1, input2)
+            print(min_dist)
+            test = gradcheck(loss, [input1, input2])
+            print("Are the gradients of whole image rotation and translation with undeformable correct: ", test)
