@@ -1,6 +1,8 @@
 import math
 import sys
-
+import numpy
+import numpy as np
+import cv2
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
@@ -283,11 +285,112 @@ class AttentionScore(torch.nn.Module):
             # attention_similarity:-> [1, 1, 16, 16]
             attention_similarity, _ = torch.max(attention, dim=1)
             # attention_score:-> [1, 1]
-            attention_sum = torch.sum(attention_similarity)
-            attention_score[b,] = torch.exp(-attention_sum)
+            attention_mean = torch.mean(attention_similarity)
+            # attention_score[b,] = torch.exp(-attention_mean)
+            attention_score[b,] = 1 / (attention_mean + 1e-24)
 
         return attention_score
 
+
+class WholeRotationShiftedLoss(torch.nn.Module):
+    def __init__(self, hshift, vshift, angle):
+        super(WholeRotationShiftedLoss, self).__init__()
+        self.hshift = hshift
+        self.vshift = vshift
+        self.angle = angle
+
+    def rotate_mse_loss(self, src, target, mask):
+        # if isinstance(src, torch.autograd.Variable):
+        #     return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
+        # else:
+        #     return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
+        se = (src - target) ** 2
+        mask_se = se * mask
+        sum_se = mask_se.view(src.size(0), -1).sum(1)
+        sum = mask.view(src.size(0), -1).sum(1)
+        mse = sum_se / sum
+        return mse
+
+    def mse_loss(self, src, target):
+        if isinstance(src, torch.autograd.Variable):
+            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
+        else:
+            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
+
+    def forward(self, fm1, fm2):
+        # C * H * W
+        bs, _, h, w = fm1.size()
+        if w < self.hshift:
+            self.hshift = self.hshift % w
+        if h < self.vshift:
+            self.vshift = self.vshift % h
+
+        # min_dist shape (bs, )  & sys.float_info.max is to get the max float value
+        # min_dist save the maximal float value
+        min_dist = torch.ones(bs, device=fm1.device) * sys.float_info.max
+        # if isinstance(fm1, torch.autograd.Variable):
+        #     min_dist = Variable(min_dist, requires_grad=True)
+        if fm1.requires_grad:
+            min_dist = Variable(min_dist, requires_grad=True)
+        else:
+            min_dist = Variable(min_dist, requires_grad=False)
+
+        if self.hshift == 0 and self.vshift == 0:
+            dist = self.mse_loss(fm1, fm2).to(fm1.device)
+            min_dist, _ = torch.min(torch.stack([min_dist, dist]), 0)
+            return min_dist
+
+        for bh in range(-self.hshift, self.hshift + 1):
+            for bv in range(-self.vshift, self.vshift + 1):
+                if bh >= 0:
+                    ref1, ref2 = fm1[:, :, :, :w - bh], fm2[:, :, :, bh:]
+                else:
+                    ref1, ref2 = fm1[:, :, :, -bh:], fm2[:, :, :, :w + bh]
+
+                if bv >= 0:
+                    ref1, ref2 = ref1[:, :, :h - bv, :], ref2[:, :, bv:, :]
+                else:
+                    ref1, ref2 = ref1[:, :, -bv:, :], ref2[:, :, :h + bv, :]
+
+                for theta in range(-self.angle, self.angle + 1):
+                    overlap_bs, overlap_c, overlap_h, overlap_w = ref1.size()
+                    M = cv2.getRotationMatrix2D(center=(overlap_w / 2, overlap_h / 2), angle=theta, scale=1)
+                    ref2 = torch.squeeze(ref2, dim=1)
+                    n_ref2 = ref2.detach().cpu().numpy()
+                    n_ref2 = n_ref2.transpose(1, 2, 0)
+                    if overlap_bs > 512:
+                        num_chuncks = overlap_bs // 512
+                        num_reminder = overlap_bs % 512
+                        r_ref2 = np.zeros(n_ref2.shape)
+                        for nc in range(num_chuncks):
+                            nc_ref2 = n_ref2[:, :, 0 + nc * 512:512 + nc * 512]
+                            r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=(overlap_w, overlap_h))
+                            r_ref2[:, :, 0 + nc * 512:512 + nc * 512] = r_nc_ref2
+                        if num_reminder > 0:
+                            nc_ref2 = n_ref2[:, :, 512 + nc * 512:]
+                            r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=(overlap_w, overlap_h))
+                            if r_nc_ref2.ndim == 2:
+                                r_nc_ref2 = numpy.expand_dims(r_nc_ref2, axis=-1)
+                            r_ref2[:, :, 512 + nc * 512:] = r_nc_ref2
+                    else:
+                        r_ref2 = cv2.warpAffine(n_ref2, M=M, dsize=(overlap_w, overlap_h))
+                    # r_ref2 = rotate(n_ref2, angle=theta, reshape=False)
+
+                    if r_ref2.ndim == 2:
+                        r_ref2 = numpy.expand_dims(r_ref2, axis=-1)
+                    r_ref2 = torch.from_numpy(r_ref2).to(fm1.device)
+                    r_ref2 = r_ref2.permute(2, 0, 1).unsqueeze(1)
+
+                    mask = np.ones([overlap_h, overlap_w])
+                    r_mask = cv2.warpAffine(mask, M=M, dsize=(overlap_w, overlap_h))
+                    # r_mask = rotate(mask, angle=theta, reshape=False)
+                    r_mask = torch.from_numpy(r_mask).to(fm1.device)
+                    r_mask = r_mask.unsqueeze(0).unsqueeze(0).repeat(overlap_bs, overlap_c, 1, 1)
+
+                    dist = self.rotate_mse_loss(ref1, r_ref2, r_mask).to(fm1.device)
+
+                    min_dist, _ = torch.min(torch.stack([min_dist.squeeze(), dist.squeeze()]), 0)
+        return min_dist.squeeze()
 
 if __name__ == "__main__":
 

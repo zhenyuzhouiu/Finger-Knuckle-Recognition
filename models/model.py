@@ -6,7 +6,7 @@ import torchvision.utils
 from torch.autograd import Variable
 from models.net_model import ResidualFeatureNet, DeConvRFNet, RFNWithSTNet, ConvNet
 from models.loss_function import WholeImageRotationAndTranslation, ImageBlockRotationAndTranslation, \
-    ShiftedLoss, MSELoss, HammingDistance
+    ShiftedLoss, MSELoss, HammingDistance, AttentionScore
 from torchvision import transforms
 import torchvision
 from torch.utils.data import DataLoader
@@ -71,12 +71,12 @@ class Model(object):
 
         inference = model_dict[args.model].cuda().eval()
 
-        # examples = iter(self.train_loader)
-        # example_data, example_target = examples.next()
-        # # This place will raise RuntimeWarning: Iterating over a tensor might cause the trace to be incorrect.
-        # data = example_data.view(-1, 3, example_data.size(2), example_data.size(3)).cuda()
-        # data = Variable(data, requires_grad=False)
-        # self.writer.add_graph(inference, data)
+        examples = iter(self.train_loader)
+        example_data, example_target = examples.next()
+        # This place will raise RuntimeWarning: Iterating over a tensor might cause the trace to be incorrect.
+        data = example_data.view(-1, 3, example_data.size(2), example_data.size(3)).cuda()
+        data = Variable(data, requires_grad=False)
+        self.writer.add_graph(inference, data)
 
         if args.shifttype == "wholeimagerotationandtranslation":
             loss = WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
@@ -96,14 +96,9 @@ class Model(object):
                 inference.train()
                 inference.cuda
             else:
-                if args.shifttype == "mseloss":
-                    loss = MSELoss().cuda()
-                    logging("Successfully building mse triplet loss")
-                    inference.train()
-                    inference.cuda()
-                elif args.shifttype == "hammingdistance":
-                    loss = HammingDistance().cuda()
-                    logging("Successfully building hamming distance triplet loss")
+                if args.shifttype == "attentionscore":
+                    loss = AttentionScore().cuda()
+                    logging("Successfully building attention score triplet loss")
                     inference.train()
                     inference.cuda()
                 else:

@@ -4,7 +4,7 @@ import math
 import argparse
 from protocols.confusionmatrix.protocol_util import *
 from inspect import getsourcefile
-from scipy import  io
+from scipy import io
 
 
 current_path = os.path.abspath(getsourcefile(lambda: 0))

@@ -7,29 +7,30 @@ import math
 import random
 import argparse
 from functools import reduce
+from scipy import io
 
 save_cmc = True
 
-nobject = [6, 6, 6, 6, 6, 6, 4, 4]
+nobject = [6, 6, 6, 6, 6, 6, 6, 4]
 
-src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/3d1s-rfn/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/3d1s-deconvrfn/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/3d1s-efficientnet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fine-tuning/3d1s-deconvrfn/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fine-tuning/3d1s-efficientnet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeshifted/3d1s-rfn/protocol3.npy',
+src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/2dof3d-deconvrfn-wrs.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/2dof3d-deconvrfn-ws.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/2dof3d-efficientnet-wrs.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/2dof3d-efficientnet-ws.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/3d1s-rfn-ws-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/3d1s-rfn-wrs-protocol.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fkv3-efficientnet/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeshifted/fkv3-rfn/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP14/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP16/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN/protocol3.npy']
 
-label = ['RFN-128',
-         'DeConvRFN',
-         'EfficientNet',
-         'DeConvRFN-FT',
-         'EfficientNet-FT',
-         'RFN-128-WS',
+label = ['DeConvRFN-WRS',
+         'DeConvRFN-WS',
+         'EfficientNet-WRS',
+         'EfficientNet-WS',
+         'RFN-WS',
+         'RFN-WRS',
          'EfficientNet-WRS',
          'RFN-WS',
          'RFN-128-14',
@@ -48,7 +49,7 @@ color = ['#000000',
          '#ff00ff',
          '#ff0000']
 
-dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/3d1s-ft-protocol3_cmc.pdf'
+dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/cmc.eps'
 
 for n in range(6):
     data = np.load(src_npy[n], allow_pickle=True)[()]
@@ -78,6 +79,7 @@ for n in range(6):
 
     print ("[*] Accuracy: {}".format(y[0]))
 
+    save_cmc = False
     if save_cmc:
         import scipy.io
         i_src_npy = src_npy[n]
@@ -99,7 +101,7 @@ for n in range(6):
     plt.xlim(xmin=1)
     plt.xlim(xmax=10)
     plt.ylim(ymax=1)
-    plt.ylim(ymin=0.7)
+    plt.ylim(ymin=0.96)
 
     ax=plt.gca()
     ax.spines['bottom'].set_color('black')
@@ -111,7 +113,7 @@ for n in range(6):
         ax.spines[axis].set_linewidth(2.0)
 
     plt.xticks([2, 4, 6, 8, 10], fontsize=16)
-    plt.yticks(np.array([0.7, 0.73, 0.76, 0.79, 0.82, 0.85, 0.88, 0.91, 0.94, 0.97, 1]), fontsize=16)
+    plt.yticks(np.array([0.965, 0.970, 0.975, 0.98, 0.985, 0.99, 0.995, 1]), fontsize=16)
 
 if dst:
     plt.savefig(dst, bbox_inches='tight')
