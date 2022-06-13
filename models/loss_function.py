@@ -81,7 +81,7 @@ class WholeImageRotationAndTranslation(torch.nn.Module):
                     radian_a = a * math.pi / 180.
                     ratio_tx = 2 * tx / w
                     ratio_ty = 2 * ty / h
-                    theta = generate_theta(radian_a, ratio_tx, ratio_ty, b, h, w, i_fm1.dtype)
+                    theta = generate_theta(radian_a, ratio_tx, ratio_ty, b, h, w, i_fm1.dtype).to(i_fm1.device)
                     grid = F.affine_grid(theta, i_fm2.size(), align_corners=False).to(i_fm1.device)
                     r_fm2 = F.grid_sample(i_fm2, grid, align_corners=False)
                     r_mask = F.grid_sample(mask, grid, align_corners=False)

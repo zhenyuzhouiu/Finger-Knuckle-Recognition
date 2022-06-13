@@ -353,13 +353,13 @@ class FKEfficientNetV2(nn.Module):
 
         head_input_c = model_cnf[-1][-3]
         head = OrderedDict()
-        # head_input_c of efficientnet_s: 256
+        # head_input_c of efficientnet_s: 512
         head.update({"conv1": ConvBNAct(head_input_c,
-                                        32,
+                                        64,
                                         kernel_size=3,
                                         norm_layer=norm_layer)})  # 激活函数默认是SiLU
 
-        head.update({"conv2": ConvBNAct(32,
+        head.update({"conv2": ConvBNAct(64,
                                         1,
                                         kernel_size=3,
                                         norm_layer=norm_layer)})
@@ -395,12 +395,16 @@ def fk_efficientnetv2_s():
     # train_size: 300, eval_size: 384
 
     # repeat, kernel, stride, expansion, in_c, out_c, operator, se_ratio
-    model_config = [[2, 3, 1, 1, 24, 24, 0, 0],
-                    [4, 3, 2, 4, 24, 48, 0, 0],
-                    [4, 3, 1, 4, 48, 64, 0, 0]]
+    model_config = [[3, 3, 1, 1, 24, 24, 0, 0],
+                    [5, 3, 2, 4, 24, 48, 0, 0],
+                    [5, 3, 2, 4, 48, 80, 0, 0],
+                    [7, 3, 2, 4, 80, 160, 1, 0.25],
+                    [14, 3, 1, 6, 160, 176, 1, 0.25],
+                    [18, 3, 2, 6, 176, 304, 1, 0.25],
+                    [5, 3, 1, 6, 304, 512, 1, 0.25]]
 
     model = FKEfficientNetV2(model_cnf=model_config,
-                             dropout_rate=0.2)
+                             dropout_rate=0.3)
     return model
 
 
