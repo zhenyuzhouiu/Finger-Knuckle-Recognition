@@ -11,7 +11,9 @@ from torchvision import transforms
 import torchvision
 from torch.utils.data import DataLoader
 from data.data_factory import Factory
-from models.EfficientNetV2 import fk_efficientnetv2_s
+from models.EfficientNetV2 import efficientnetv2_s, ConvBNAct
+from collections import OrderedDict
+from functools import partial
 
 
 def logging(msg, suc=True):
@@ -24,7 +26,7 @@ def logging(msg, suc=True):
 model_dict = {
     "RFNet": ResidualFeatureNet().cuda(),
     "DeConvRFNet": DeConvRFNet().cuda(),
-    "EfficientNetV2-S": fk_efficientnetv2_s().cuda(),
+    "EfficientNetV2-S": efficientnetv2_s().cuda(),
     "RFNWithSTNet": RFNWithSTNet().cuda(),
     "ConvNet": ConvNet().cuda(),
 }
@@ -42,7 +44,8 @@ class Model(object):
         transform = transforms.Compose([
             transforms.ToTensor()
         ])
-        train_dataset = Factory(args.train_path, input_size=args.input_size, transform=transform, valid_ext=['.bmp', '.jpg', '.JPG'], train=True)
+        train_dataset = Factory(args.train_path, input_size=args.input_size, transform=transform,
+                                valid_ext=['.bmp', '.jpg', '.JPG'], train=True)
         logging("Successfully Load {} as training dataset...".format(args.train_path))
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
@@ -68,8 +71,31 @@ class Model(object):
     def _build_model(self, args):
         if args.model not in ["RFNet", "DeConvRFNet", "EfficientNetV2-S", "RFNWithSTNet", "ConvNet"]:
             raise RuntimeError('Model not found')
-
         inference = model_dict[args.model].cuda().eval()
+        if args.model == "EfficientNetV2-S":
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            pre_trained = "/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/" \
+                          "Finger-Knuckle-Recognition/checkpoint/EfficientNetV2-S/pre_efficientnetv2-s.pth"
+            weights_dict = torch.load(pre_trained, map_location=device)
+            load_weights_dict = {k: v for k, v in weights_dict.items()
+                                 if inference.state_dict()[k].numel() == v.numel()}
+            print(inference.load_state_dict(load_weights_dict, strict=False))
+            norm_layer = partial(torch.nn.BatchNorm2d, eps=1e-3, momentum=0.1)
+            fk_head = OrderedDict()
+            # head_input_c of efficientnet_s: 512
+            fk_head.update({"conv1": ConvBNAct(256,
+                                               64,
+                                               kernel_size=3,
+                                               norm_layer=norm_layer)})  # 激活函数默认是SiLU
+
+            fk_head.update({"conv2": ConvBNAct(64,
+                                               1,
+                                               kernel_size=3,
+                                               norm_layer=norm_layer)})
+
+            fk_head = torch.nn.Sequential(fk_head)
+            inference.head = fk_head
+            inference = inference.cuda().eval()
 
         examples = iter(self.train_loader)
         example_data, example_target = examples.next()
@@ -117,7 +143,7 @@ class Model(object):
             start_epoch = 1
 
         # 0-100: 0.01; 150-450: 0.001; 450-800:0.0001; 800-：0.00001
-        scheduler = MultiStepLR(self.optimizer, milestones=[10,  500, 1000], gamma=0.1)
+        scheduler = MultiStepLR(self.optimizer, milestones=[10, 500, 1000], gamma=0.1)
 
         for e in range(start_epoch, args.epochs + start_epoch):
             # self.exp_lr_scheduler(e, lr_decay_epoch=100)

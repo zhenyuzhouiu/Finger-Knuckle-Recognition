@@ -96,7 +96,7 @@ class Factory(torch.utils.data.Dataset):
         img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB', size=self.input_size))
         img.append(load_image(join(self.folder, selected_folder, positive), options='RGB', size=self.input_size))
 
-        for i in range(10):
+        for i in range(5):
             negative_folder = randpick_list(self.subfolder_names, [selected_folder])
             negative = randpick_list(self.fdict[negative_folder])
             # img.append(np.expand_dims(load_image(join(self.folder, negative_folder, negative), options='RGB'), -1))

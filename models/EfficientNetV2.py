@@ -395,16 +395,16 @@ def fk_efficientnetv2_s():
     # train_size: 300, eval_size: 384
 
     # repeat, kernel, stride, expansion, in_c, out_c, operator, se_ratio
-    model_config = [[3, 3, 1, 1, 24, 24, 0, 0],
-                    [5, 3, 2, 4, 24, 48, 0, 0],
-                    [5, 3, 2, 4, 48, 80, 0, 0],
-                    [7, 3, 2, 4, 80, 160, 1, 0.25],
-                    [14, 3, 1, 6, 160, 176, 1, 0.25],
-                    [18, 3, 2, 6, 176, 304, 1, 0.25],
-                    [5, 3, 1, 6, 304, 512, 1, 0.25]]
+    model_config = [[2, 3, 1, 1, 24, 24, 0, 0],
+                    [4, 3, 2, 4, 24, 48, 0, 0],
+                    [4, 3, 2, 4, 48, 64, 0, 0],
+                    [6, 3, 2, 4, 64, 128, 1, 0.25],
+                    [9, 3, 1, 6, 128, 160, 1, 0.25],
+                    [15, 3, 2, 6, 160, 256, 1, 0.25]]
 
     model = FKEfficientNetV2(model_cnf=model_config,
                              dropout_rate=0.3)
+
     return model
 
 
