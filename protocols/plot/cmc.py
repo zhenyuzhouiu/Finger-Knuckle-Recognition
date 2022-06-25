@@ -11,16 +11,16 @@ from scipy import io
 
 save_cmc = True
 
-nobject = [6, 6, 6, 6, 6, 6, 6, 4]
+nobject = [5, 5, 5, 5, 5, 5, 5, 5]
 
-src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/2dof3d-deconvrfn-wrs.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/2dof3d-deconvrfn-ws.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/2dof3d-efficientnet-wrs.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/2dof3d-efficientnet-ws.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/3d1s-rfn-ws-protocol.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/3d1s-rfn-wrs-protocol.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fkv3-efficientnet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeshifted/fkv3-rfn/protocol3.npy',
+src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/deconvrfn-sttl-crosshd-middle-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/deconvrfn-trtl-crosshd-middle-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/efficientnetv2-s-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/efficientnetv2-s-sttl-crosshd-middle-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/efficientnetv2-s-trtl-crosshd-middle-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/fknet-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/rfn-sttl-crosshd-middle-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/rfn-trtl-crosshd-middle-protocol.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP14/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP16/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN/protocol3.npy']
@@ -49,9 +49,9 @@ color = ['#000000',
          '#ff00ff',
          '#ff0000']
 
-dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/test/3d1s-2d/cmc.eps'
+dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/cmc.eps'
 
-for n in range(6):
+for n in range(8):
     data = np.load(src_npy[n], allow_pickle=True)[()]
     match_dict = np.array(data['mmat'])
     nsamples = np.shape(match_dict)[0]
@@ -79,7 +79,7 @@ for n in range(6):
 
     print ("[*] Accuracy: {}".format(y[0]))
 
-    save_cmc = False
+    save_cmc = True
     if save_cmc:
         import scipy.io
         i_src_npy = src_npy[n]

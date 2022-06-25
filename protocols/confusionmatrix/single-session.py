@@ -15,6 +15,9 @@
 # =========================================================
 
 import os
+
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import sys
 from PIL import Image
 import numpy as np
@@ -29,14 +32,14 @@ from torchvision import transforms
 from inspect import getsourcefile
 import os.path as path
 from os.path import join
+from models.EfficientNetV2 import efficientnetv2_s, ConvBNAct
+from collections import OrderedDict
+from functools import partial
 
 current_path = os.path.abspath(getsourcefile(lambda: 0))
 current_dir = os.path.dirname(current_path)
 parent_dir = current_dir[:current_dir.rfind(os.path.sep)]
 sys.path.insert(0, parent_dir)
-
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 transform = transforms.Compose([transforms.ToTensor()])
 
@@ -156,13 +159,13 @@ def genuine_imposter(test_path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--test_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/Session_1_128/1-221/",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUHD/yolov5/all/",
                     dest="test_path")
 parser.add_argument("--out_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3_mRFN-128-stwholershifted-losstriplet-lr0.001-subd3-subs8-angle5-a20-nna40-s3_2022-04-13-15-02/output/oldwrs2newwrs-protocol.npy",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-session2_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-50/output/crosshd-index-protocol-600.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3_mRFN-128-stwholershifted-losstriplet-lr0.001-subd3-subs8-angle5-a20-nna40-s3_2022-04-13-15-02/ckpt_epoch_2780.pth",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-session2_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-50/ckpt_epoch_600.pth",
                     dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=4)
@@ -175,18 +178,42 @@ parser.add_argument('--model', type=str, dest='model', default="RFNet")
 model_dict = {
     "RFNet": models.net_model.ResidualFeatureNet().cuda(),
     "DeConvRFNet": models.net_model.DeConvRFNet().cuda(),
-    "EfficientNet": models.EfficientNetV2.fk_efficientnetv2_s().cuda(),
+    "EfficientNetV2-S": models.EfficientNetV2.efficientnetv2_s().cuda(),
     "RFNWithSTNet": models.net_model.RFNWithSTNet().cuda(),
     "ConvNet": models.net_model.ConvNet().cuda(),
 }
 
 args = parser.parse_args()
 inference = model_dict[args.model].cuda()
+if args.model == "EfficientNetV2-S":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    pre_trained = "/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/" \
+                  "Finger-Knuckle-Recognition/checkpoint/EfficientNetV2-S/pre_efficientnetv2-s.pth"
+    weights_dict = torch.load(pre_trained, map_location=device)
+    load_weights_dict = {k: v for k, v in weights_dict.items()
+                         if inference.state_dict()[k].numel() == v.numel()}
+    print(inference.load_state_dict(load_weights_dict, strict=False))
+    norm_layer = partial(torch.nn.BatchNorm2d, eps=1e-3, momentum=0.1)
+    fk_head = OrderedDict()
+    # head_input_c of efficientnet_s: 512
+    fk_head.update({"conv1": ConvBNAct(256,
+                                       64,
+                                       kernel_size=3,
+                                       norm_layer=norm_layer)})  # 激活函数默认是SiLU
+
+    fk_head.update({"conv2": ConvBNAct(64,
+                                       1,
+                                       kernel_size=3,
+                                       norm_layer=norm_layer)})
+
+    fk_head = torch.nn.Sequential(fk_head)
+    inference.head = fk_head
+    inference = inference.cuda().eval()
+
 inference.load_state_dict(torch.load(args.model_path))
 # inference = torch.jit.load("knuckle-script-polyu.pt")
 # Loss = models.loss_function.ShiftedLoss(args.shift_size, args.shift_size)
 Loss = models.loss_function.WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
-# Loss = models.loss_function.WholeRotationShiftedLoss(args.shift_size, args.shift_size, args.rotate_angle)
 # Loss = models.loss_function.ImageBlockRotationAndTranslation(i_block_size=args.block_size, i_v_shift=args.shift_size,
 #                                                              i_h_shift=args.shift_size, i_angle=args.rotate_angle,
 #                                                              i_topk=args.top_k)

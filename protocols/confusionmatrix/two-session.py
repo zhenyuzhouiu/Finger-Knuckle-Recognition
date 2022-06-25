@@ -75,9 +75,9 @@ def calc_feats_more(*paths):
     return fv.cpu().data.numpy()
 
 
-def genuine_imposter(test_path):
-    session1_path = join(test_path, "session1")
-    session2_path = join(test_path, "session2")
+def genuine_imposter(args_session1_path, args_session2_path):
+    session1_path = args_session1_path
+    session2_path = args_session2_path
 
     subs_session1 = subfolders(session1_path, preserve_prefix=True)
     subs_session1 = sorted(subs_session1)
@@ -149,35 +149,42 @@ def genuine_imposter(test_path):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--test_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/two-session/",
-                    dest="test_path")
+parser.add_argument("--session1", type=str,
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/yolov5/Session_1/1-104/",
+                    dest="session1")
+parser.add_argument("--session2", type=str,
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/yolov5/Session_2/",
+                    dest="session2")
 parser.add_argument("--out_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/two-session/fkv3-rfn/d3-a5-topk12-protocol3.npy",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51/output/protocol.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/3d1s3d_RFN-128-shiftedloss-lr0.001-subs8-angle5-a20-s4_2022-05-12-20-21/ckpt_epoch_4280.pth",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51/ckpt_epoch_1620.pth",
                     dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
-parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
+parser.add_argument("--shift_size", type=int, dest="shift_size", default=4)
 parser.add_argument('--block_size', type=int, dest="block_size", default=8)
 parser.add_argument("--rotate_angle", type=int, dest="rotate_angle", default=5)
 parser.add_argument("--top_k", type=int, dest="top_k", default=16)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)
+parser.add_argument('--model', type=str, dest='model', default="RFNet")
+
+model_dict = {
+    "RFNet": models.net_model.ResidualFeatureNet().cuda(),
+    "DeConvRFNet": models.net_model.DeConvRFNet().cuda(),
+    "EfficientNet": models.EfficientNetV2.fk_efficientnetv2_s().cuda(),
+    "RFNWithSTNet": models.net_model.RFNWithSTNet().cuda(),
+    "ConvNet": models.net_model.ConvNet().cuda(),
+}
 
 args = parser.parse_args()
-if "RFN-128" in args.model_path:
-    inference = models.net_model.ResidualFeatureNet()
-else:
-    if "DeConvRFNet" in args.model_path:
-        inference = models.net_model.DeConvRFNet()
-    elif "EfficientNet" in args.model_path:
-        inference = models.efficientnet.EfficientNet(width_coefficient=1, depth_coefficient=1, dropout_rate=0.2)
-
+inference = model_dict[args.model].cuda()
 inference.load_state_dict(torch.load(args.model_path))
-# Loss = net_common.WholeRotationShiftedLoss(args.shift_size, args.shift_size, args.angle)
-Loss = models.loss_function.ImageBlockRotationAndTranslation(args.block_size, args.shift_size, args.shift_size,
-                                                             args.rotate_angle, args.top_k)
+# Loss = models.loss_function.ShiftedLoss(args.shift_size, args.shift_size)
+Loss = models.loss_function.WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
+# Loss = models.loss_function.ImageBlockRotationAndTranslation(i_block_size=args.block_size, i_v_shift=args.shift_size,
+#                                                              i_h_shift=args.shift_size, i_angle=args.rotate_angle,
+#                                                              i_topk=args.top_k)
 Loss.cuda()
 Loss.eval()
 
@@ -192,7 +199,7 @@ def _loss(feats1, feats2):
 inference = inference.cuda()
 inference.eval()
 
-gscores, iscores, mmat = genuine_imposter(args.test_path)
+gscores, iscores, mmat = genuine_imposter(args.session1, args.session2)
 if args.save_mmat:
     np.save(args.out_path, {"g_scores": gscores, "i_scores": iscores, "mmat": mmat})
 else:
