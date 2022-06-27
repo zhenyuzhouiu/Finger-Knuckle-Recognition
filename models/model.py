@@ -96,11 +96,10 @@ class Model(object):
             fk_head = torch.nn.Sequential(fk_head)
             inference.head = fk_head
             inference = inference.cuda().eval()
+            data = torch.randn([3, 300, 300]).unsqueeze(0).cuda()
+        else:
+            data = torch.randn([3, 128, 128]).unsqueeze(0).cuda()
 
-        examples = iter(self.train_loader)
-        example_data, example_target = examples.next()
-        # This place will raise RuntimeWarning: Iterating over a tensor might cause the trace to be incorrect.
-        data = example_data.view(-1, 3, example_data.size(2), example_data.size(3)).cuda()
         data = Variable(data, requires_grad=False)
         self.writer.add_graph(inference, data)
 

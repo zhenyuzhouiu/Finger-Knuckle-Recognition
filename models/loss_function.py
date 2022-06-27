@@ -72,7 +72,7 @@ class WholeImageRotationAndTranslation(torch.nn.Module):
         else:
             min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=False, device=i_fm1.device)
 
-        if self.v_shift == self.h_shift == 0:
+        if self.v_shift == self.h_shift == self.angle == 0:
             min_dist = mse_loss(i_fm1, i_fm2).cuda()
             return min_dist
         for tx in range(-self.h_shift, self.h_shift + 1):
