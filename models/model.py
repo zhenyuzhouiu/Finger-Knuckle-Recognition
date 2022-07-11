@@ -104,19 +104,19 @@ class Model(object):
         self.writer.add_graph(inference, data)
 
         if args.shifttype == "wholeimagerotationandtranslation":
-            loss = WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle).cuda()
+            loss = WholeImageRotationAndTranslation(args.vertical_size, args.horizontal_size, args.rotate_angle).cuda()
             logging("Successfully building whole image rotation and translation triplet loss")
             inference.train()
             inference.cuda()
         elif args.shifttype == "imageblockrotationandtranslation":
-            loss = ImageBlockRotationAndTranslation(args.block_size, args.shift_size, args.shift_size,
+            loss = ImageBlockRotationAndTranslation(args.block_size, args.vertical_size, args.horizontal_size,
                                                     args.rotate_angle).cuda()
             logging("Successfully building image block rotation and translation triplet loss")
             inference.train()
             inference.cuda
         else:
             if args.shifttype == "shiftedloss":
-                loss = ShiftedLoss(hshift=args.shift_size, vshift=args.shift_size).cuda()
+                loss = ShiftedLoss(hshift=args.vertical_size, vshift=args.horizontal_size).cuda()
                 logging("Successfully building shifted triplet loss")
                 inference.train()
                 inference.cuda

@@ -17,7 +17,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import sys
 from PIL import Image
 import numpy as np
@@ -50,9 +50,11 @@ def calc_feats(path):
     2.Normalize image from 0-255 to 0-1
     3.Get the feature map from the model with inference()
     """
-    container = np.zeros((1, 3, args.default_size, args.default_size))
+    size = args.default_size
+    w, h = size[0], size[1]
+    container = np.zeros((1, 3, h, w))
     im = np.array(
-        Image.open(path).convert("RGB").resize((args.default_size, args.default_size)),
+        Image.open(path).convert("RGB").resize(size=size),
         dtype=np.float32
     )
     container[0, 0, :, :] = im
@@ -70,10 +72,12 @@ def calc_feats_more(*paths):
     2.Normalize image from 0-255 to 0-1
     3.Get a batch of feature from the model inference()
     """
-    container = np.zeros((len(paths), 3, args.default_size, args.default_size))
+    size = args.default_size
+    w, h = size[0], size[1]
+    container = np.zeros((len(paths), 3, h, w))
     for i, path in enumerate(paths):
         im = np.array(
-            Image.open(path).convert('RGB').resize((args.default_size, args.default_size)),
+            Image.open(path).convert('RGB').resize(size=size),
             dtype=np.float32
         )
         # change hxwxc = cxhxw
@@ -162,18 +166,25 @@ parser.add_argument("--test_path", type=str,
                     default=r"C:\Users\ZhenyuZHOU\Desktop\Finger-Knuckle-Recognition\dataset\Segment_Rotate_FK_Video_timeF\Segment_Rotate_FK_Video_timeF60\1s1f",
                     dest="test_path")
 parser.add_argument("--out_path", type=str,
+<<<<<<< HEAD
                     default=r"C:\Users\ZhenyuZHOU\Desktop\Finger-Knuckle-Recognition\checkpoint\RFNet\fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51\output\cross1s1f-protocol.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
                     default=r"C:\Users\ZhenyuZHOU\Desktop\Finger-Knuckle-Recognition\checkpoint\RFNet\fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51\ckpt_epoch_1620.pth",
+=======
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/DeConvRFNet/fkv3(yolov5)-105-221_DeConvRFNet-shiftedloss-lr0.0001-subs8-angle5-a20-s4_2022-06-14-12-36/output/crosshd-index-protocol.npy",
+                    dest="out_path")
+parser.add_argument("--model_path", type=str,
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/DeConvRFNet/fkv3(yolov5)-105-221_DeConvRFNet-shiftedloss-lr0.0001-subs8-angle5-a20-s4_2022-06-14-12-36/ckpt_epoch_3720.pth",
+>>>>>>> 23d37e0a16f63fd034c51fd60716dedd48da9efa
                     dest="model_path")
-parser.add_argument("--default_size", type=int, dest="default_size", default=128)
+parser.add_argument("--default_size", type=int, dest="default_size", default=(128, 128))
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=4)
 parser.add_argument('--block_size', type=int, dest="block_size", default=8)
 parser.add_argument("--rotate_angle", type=int, dest="rotate_angle", default=5)
 parser.add_argument("--top_k", type=int, dest="top_k", default=16)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)
-parser.add_argument('--model', type=str, dest='model', default="RFNet")
+parser.add_argument('--model', type=str, dest='model', default="DeConvRFNet")
 
 model_dict = {
     "RFNet": models.net_model.ResidualFeatureNet().cuda(),
@@ -212,8 +223,8 @@ if args.model == "EfficientNetV2-S":
 
 inference.load_state_dict(torch.load(args.model_path))
 # inference = torch.jit.load("knuckle-script-polyu.pt")
-# Loss = models.loss_function.ShiftedLoss(args.shift_size, args.shift_size)
-Loss = models.loss_function.WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
+Loss = models.loss_function.ShiftedLoss(args.shift_size, args.shift_size)
+# Loss = models.loss_function.WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
 # Loss = models.loss_function.ImageBlockRotationAndTranslation(i_block_size=args.block_size, i_v_shift=args.shift_size,
 #                                                              i_h_shift=args.shift_size, i_angle=args.rotate_angle,
 #                                                              i_topk=args.top_k)

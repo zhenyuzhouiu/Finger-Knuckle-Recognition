@@ -4,7 +4,7 @@
 # =========================================================
 import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 import argparse
 import shutil
@@ -19,16 +19,16 @@ def build_parser():
 
     # Checkpoint Options
     parser.add_argument('--checkpoint_dir', type=str,
-                        dest='checkpoint_dir', default='./checkpoint/EfficientNetV2-S/')
-    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv1')
+                        dest='checkpoint_dir', default='./checkpoint/RFNet/')
+    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv3(yolov5-184-208)-105-221')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval', default=20)
 
     # Dataset Options
     parser.add_argument('--train_path', type=str, dest='train_path',
-                        default='./dataset/PolyUKnuckleV1/train_set/')
+                        default='./dataset/PolyUKnuckleV3/yolov5/184_208/Session_1/105-221/')
 
     # Training Strategy
-    parser.add_argument('--batch_size', type=int, dest='batch_size', default=2)
+    parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
     parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-3)
 
@@ -36,15 +36,16 @@ def build_parser():
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
     # Pre-defined Options
     parser.add_argument('--shifttype', type=str, dest='shifttype', default='wholeimagerotationandtranslation')
-    parser.add_argument('--alpha', type=float, dest='alpha', default=10)
-    parser.add_argument('--model', type=str, dest='model', default="EfficientNetV2-S")
-    parser.add_argument('--input_size', type=int, dest='input_size', default=300)
-    parser.add_argument('--shifted_size', type=int, dest='shift_size', default=4)
+    parser.add_argument('--alpha', type=float, dest='alpha', default=20)
+    parser.add_argument('--model', type=str, dest='model', default="RFNet")
+    parser.add_argument('--input_size', type=int, dest='input_size', default=(184, 208))
+    parser.add_argument('--horizontal_size', type=int, dest='horizontal_size', default=4)
+    parser.add_argument('--vertical_size', type=int, dest='vertical_size', default=8)
     parser.add_argument('--block_size', type=int, dest="block_size", default=8)
-    parser.add_argument('--rotate_angle', type=int, dest="rotate_angle", default=5)
+    parser.add_argument('--rotate_angle', type=int, dest="rotate_angle", default=4)
 
     # fine-tuning
-    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="")
+    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="./checkpoint/RFNet/fkv1_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a10-s4_2022-06-12-17-06/ckpt_epoch_360.pth")
     return parser
 
 
@@ -55,7 +56,7 @@ def main():
     this_datetime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
     args.checkpoint_dir = os.path.join(
         args.checkpoint_dir,
-        "{}_{}-{}-lr{}-subs{}-angle{}-a{}-s{}_{}".format(
+        "{}_{}-{}-lr{}-subs{}-angle{}-a{}-hs{}_vs{}_{}".format(
             args.db_prefix,
             args.model,
             args.shifttype,
@@ -63,7 +64,8 @@ def main():
             int(args.block_size),
             int(args.rotate_angle),
             int(args.alpha),
-            int(args.shift_size),
+            int(args.horizontal_size),
+            int(args.vertical_size),
             this_datetime
         )
     )
