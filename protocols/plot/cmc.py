@@ -11,16 +11,16 @@ from scipy import io
 
 save_cmc = True
 
-nobject = [5, 5, 5, 5, 5, 5, 5, 5]
+nobject = [6, 6, 6, 6, 6, 6, 6, 6]
 
-src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/deconvrfn-sttl-crosshd-middle-protocol.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/deconvrfn-trtl-crosshd-middle-protocol.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/efficientnetv2-s-protocol.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/efficientnetv2-s-sttl-crosshd-middle-protocol.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/efficientnetv2-s-trtl-crosshd-middle-protocol.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/fknet-protocol.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/rfn-sttl-crosshd-middle-protocol.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/rfn-trtl-crosshd-middle-protocol.npy',
+src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/ablation-study-184-208/rfnet-ritl-a0-h0-v0-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/ablation-study-184-208/rfnet-ritl-a0-h4-v4-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/ablation-study-184-208/rfnet-ritl-a4-h0-v4-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/ablation-study-184-208/rfnet-ritl-a4-h4-v4-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/ablation-study-184-208/rfnet-ritl-a4-h4-v8-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-index-fkv3(yolov5)-105-221/fknet-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-index-fkv3(yolov5)-105-221/rfnet-ritl-crosshd-index-protocol.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-index-fkv3(yolov5)-105-221/rfnet-sttl-crosshd-index-protocol.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP14/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP16/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN/protocol3.npy']
@@ -49,9 +49,9 @@ color = ['#000000',
          '#ff00ff',
          '#ff0000']
 
-dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/cross-hd-middle/cmc.eps'
+dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/codekevin/fknet/test/ablation-study-184-208/cmc.eps'
 
-for n in range(8):
+for n in range(5):
     data = np.load(src_npy[n], allow_pickle=True)[()]
     match_dict = np.array(data['mmat'])
     nsamples = np.shape(match_dict)[0]

@@ -18,11 +18,12 @@ import numpy as np
 import torch
 
 
-def load_image(path, options='RGB', size=128):
+def load_image(path, options='RGB', size=(128, 128)):
     assert (options in ["RGB", "L"])
     # the torch.ToTensor will scaling the [0, 255] to [0.0, 1.0]
     # if the numpy.ndarray has dtype = np.uint8
-    image = np.array(Image.open(path).convert(options).resize((int(size), int(size))), dtype=np.uint8)
+    tmp = Image.open(path).convert(options)
+    image = np.array(Image.open(path).convert(options).resize(size=size), dtype=np.uint8)
     return image
 
 
@@ -37,7 +38,7 @@ def randpick_list(src, list_except=None):
 
 
 class Factory(torch.utils.data.Dataset):
-    def __init__(self, data_path, input_size=128, transform=None, valid_ext=['.jpg', '.bmp', '.png'], train=True):
+    def __init__(self, data_path, input_size=(128, 128), transform=None, valid_ext=['.jpg', '.bmp', '.png'], train=True):
         self.ext = valid_ext
         self.transform = transform
         self._has_ext = lambda f: True if [e for e in self.ext if e in f] else False

@@ -44,9 +44,11 @@ transform = transforms.Compose([transforms.ToTensor()])
 
 
 def calc_feats(path):
-    container = np.zeros((1, 3, args.default_size, args.default_size))
+    size = args.default_size
+    w, h = size[0], size[1]
+    container = np.zeros((1, 3, h, w))
     im = np.array(
-        Image.open(path).convert("RGB").resize((args.default_size, args.default_size)),
+        Image.open(path).convert("RGB").resize(size=size),
         dtype=np.float32
     )
     container[0, 0, :, :] = im
@@ -59,10 +61,12 @@ def calc_feats(path):
 
 
 def calc_feats_more(*paths):
-    container = np.zeros((len(paths), 3, args.default_size, args.default_size))
+    size = args.default_size
+    w, h =size[0], size[1]
+    container = np.zeros((len(paths), 3, h, w))
     for i, path in enumerate(paths):
         im = np.array(
-            Image.open(path).convert("RGB").resize((args.default_size, args.default_size)),
+            Image.open(path).convert("RGB").resize(size=size),
             dtype=np.float32
         )
         im = np.transpose(im, (2, 0, 1))
@@ -150,21 +154,22 @@ def genuine_imposter(args_session1_path, args_session2_path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--session1", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/yolov5/Session_1/1-104/",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/yolov5/184_208/Session_1/1-104/",
                     dest="session1")
 parser.add_argument("--session2", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/yolov5/Session_2/",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/yolov5/184_208/Session_2/",
                     dest="session2")
 parser.add_argument("--out_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51/output/protocol.npy",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5-184-208)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle4-a20-s4_2022-07-05-20-04/output/protocol.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51/ckpt_epoch_1620.pth",
+                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5-184-208)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle4-a20-s4_2022-07-05-20-04/ckpt_epoch_3360.pth",
                     dest="model_path")
-parser.add_argument("--default_size", type=int, dest="default_size", default=128)
-parser.add_argument("--shift_size", type=int, dest="shift_size", default=4)
+parser.add_argument('--default_size', type=int, dest='default_size', default=(184, 208))
+parser.add_argument('--horizontal_size', type=int, dest='horizontal_size', default=4)
+parser.add_argument('--vertical_size', type=int, dest='vertical_size', default=4)
 parser.add_argument('--block_size', type=int, dest="block_size", default=8)
-parser.add_argument("--rotate_angle", type=int, dest="rotate_angle", default=5)
+parser.add_argument("--rotate_angle", type=int, dest="rotate_angle", default=4)
 parser.add_argument("--top_k", type=int, dest="top_k", default=16)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)
 parser.add_argument('--model', type=str, dest='model', default="RFNet")
@@ -181,7 +186,7 @@ args = parser.parse_args()
 inference = model_dict[args.model].cuda()
 inference.load_state_dict(torch.load(args.model_path))
 # Loss = models.loss_function.ShiftedLoss(args.shift_size, args.shift_size)
-Loss = models.loss_function.WholeImageRotationAndTranslation(args.shift_size, args.shift_size, args.rotate_angle)
+Loss = models.loss_function.WholeImageRotationAndTranslation(args.vertical_size, args.horizontal_size, args.rotate_angle)
 # Loss = models.loss_function.ImageBlockRotationAndTranslation(i_block_size=args.block_size, i_v_shift=args.shift_size,
 #                                                              i_h_shift=args.shift_size, i_angle=args.rotate_angle,
 #                                                              i_topk=args.top_k)
