@@ -12,12 +12,10 @@ warnings.simplefilter('ignore')
 import torch
 import cv2
 import numpy as np
-import requests
 import torchvision.transforms as transforms
 from pytorch_grad_cam import EigenCAM, GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image, scale_cam_image
 from PIL import Image
-import matplotlib.pyplot as plt
 
 COLORS = np.random.uniform(0, 255, size=(80, 3))
 
@@ -84,9 +82,7 @@ boxes, colors, names = parse_detections(results)
 detections = draw_detections(boxes, colors, names, rgb_img.copy())
 Image.fromarray(detections)
 
-
-# cam = EigenCAM(model, target_layers, use_cuda=False)
-cam = GradCAM(model, target_layers, use_cuda=False)
+cam = EigenCAM(model, target_layers, use_cuda=False)
 grayscale_cam = cam(tensor)
 # grayscale_cam = grayscale_cam[0, :, :]
 grayscale_cam = grayscale_cam[0, :]

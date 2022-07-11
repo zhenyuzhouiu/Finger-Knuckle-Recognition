@@ -166,17 +166,10 @@ parser.add_argument("--test_path", type=str,
                     default=r"C:\Users\ZhenyuZHOU\Desktop\Finger-Knuckle-Recognition\dataset\Segment_Rotate_FK_Video_timeF\Segment_Rotate_FK_Video_timeF60\1s1f",
                     dest="test_path")
 parser.add_argument("--out_path", type=str,
-<<<<<<< HEAD
                     default=r"C:\Users\ZhenyuZHOU\Desktop\Finger-Knuckle-Recognition\checkpoint\RFNet\fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51\output\cross1s1f-protocol.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
                     default=r"C:\Users\ZhenyuZHOU\Desktop\Finger-Knuckle-Recognition\checkpoint\RFNet\fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51\ckpt_epoch_1620.pth",
-=======
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/DeConvRFNet/fkv3(yolov5)-105-221_DeConvRFNet-shiftedloss-lr0.0001-subs8-angle5-a20-s4_2022-06-14-12-36/output/crosshd-index-protocol.npy",
-                    dest="out_path")
-parser.add_argument("--model_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/DeConvRFNet/fkv3(yolov5)-105-221_DeConvRFNet-shiftedloss-lr0.0001-subs8-angle5-a20-s4_2022-06-14-12-36/ckpt_epoch_3720.pth",
->>>>>>> 23d37e0a16f63fd034c51fd60716dedd48da9efa
                     dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=(128, 128))
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=4)
