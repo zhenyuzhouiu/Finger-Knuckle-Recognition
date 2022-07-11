@@ -159,13 +159,13 @@ def genuine_imposter(test_path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--test_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUHD/yolov5/all/",
+                    default=r"C:\Users\ZhenyuZHOU\Desktop\Finger-Knuckle-Recognition\dataset\Segment_Rotate_FK_Video_timeF\Segment_Rotate_FK_Video_timeF60\1s1f",
                     dest="test_path")
 parser.add_argument("--out_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-session2_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-50/output/crosshd-index-protocol-600.npy",
+                    default=r"C:\Users\ZhenyuZHOU\Desktop\Finger-Knuckle-Recognition\checkpoint\RFNet\fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51\output\cross1s1f-protocol.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-session2_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-50/ckpt_epoch_600.pth",
+                    default=r"C:\Users\ZhenyuZHOU\Desktop\Finger-Knuckle-Recognition\checkpoint\RFNet\fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51\ckpt_epoch_1620.pth",
                     dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=4)

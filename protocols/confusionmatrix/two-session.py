@@ -150,21 +150,21 @@ def genuine_imposter(args_session1_path, args_session2_path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--session1", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/yolov5/Session_1/1-104/",
+                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\dataset\\PolyUKnuckleV3\\yolov5\\Session_1\\1-104",
                     dest="session1")
 parser.add_argument("--session2", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/dataset/PolyUKnuckleV3/yolov5/Session_2/",
+                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\dataset\\PolyUKnuckleV3\\yolov5\\Session_2",
                     dest="session2")
 parser.add_argument("--out_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51/output/protocol.npy",
+                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\checkpoint\\RFNet\\fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle0-a20-s0_2022-06-27-21-00\\output\\protocol.npy",
                     dest="out_path")
 parser.add_argument("--model_path", type=str,
-                    default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/Finger-Knuckle-Recognition/checkpoint/RFNet/fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle5-a20-s4_2022-06-12-23-51/ckpt_epoch_1620.pth",
+                    default="C:\\Users\\ZhenyuZHOU\\Desktop\\Finger-Knuckle-Recognition\\checkpoint\\RFNet\\fkv3(yolov5)-105-221_RFNet-wholeimagerotationandtranslation-lr0.001-subs8-angle0-a20-s0_2022-06-27-21-00\\ckpt_epoch_1360.pth",
                     dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
-parser.add_argument("--shift_size", type=int, dest="shift_size", default=4)
+parser.add_argument("--shift_size", type=int, dest="shift_size", default=0)
 parser.add_argument('--block_size', type=int, dest="block_size", default=8)
-parser.add_argument("--rotate_angle", type=int, dest="rotate_angle", default=5)
+parser.add_argument("--rotate_angle", type=int, dest="rotate_angle", default=0)
 parser.add_argument("--top_k", type=int, dest="top_k", default=16)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)
 parser.add_argument('--model', type=str, dest='model', default="RFNet")
